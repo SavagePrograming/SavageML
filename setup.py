@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='SavageML',
-    version='1.0',
+    version='0.1.0',
     packages=[''],
     url='',
     license='MIT License',
