@@ -1,2 +1,2 @@
-def verify():
-    print("Success")
+def verify_install():
+    print("Install Success")
