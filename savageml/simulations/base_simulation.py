@@ -1,7 +1,7 @@
 import random
 import time
 
-from savageml.models_tmp import base_model
+from savageml.models import base_model
 from .simulation_state import SimulationState
 
 

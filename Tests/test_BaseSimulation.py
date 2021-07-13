@@ -1,6 +1,6 @@
-from savageml.models_tmp import BaseModel
-from savageml.simulations_tmp import BaseSimulation
-from savageml.simulations_tmp import SimulationState
+from savageml.models import BaseModel
+from savageml.simulations import BaseSimulation
+from savageml.simulations import SimulationState
 
 
 def test_initial_state_initialized():
