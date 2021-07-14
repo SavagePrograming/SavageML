@@ -1,6 +1,5 @@
 from savageml.models import BaseModel
-from savageml.simulations import BaseSimulation
-from savageml.simulations import SimulationState
+from savageml.simulations import BaseSimulation, SimulationState
 
 
 def test_initial_state_initialized():
@@ -80,3 +79,11 @@ def test_reset_random():
     simulation.reset()
     rngVal_reset = simulation.random.random()
     assert rngVal_first == rngVal_reset
+
+
+def test_simulation_iterates():
+    simulation = BaseSimulation()
+    inside_loop_ran = False
+    for _ in simulation:
+        inside_loop_ran = True
+    assert inside_loop_ran
