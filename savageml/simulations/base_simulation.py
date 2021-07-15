@@ -87,5 +87,9 @@ class BaseSimulation:
             self.step(visualize=visualize)
 
     def reset(self):
-        self.random = numpy.random.default_rng(self.seed)
-        self.state = SimulationState.INITIALIZED
+        params = dict()
+        for key in self._get_param_names():
+            value = getattr(self, key)
+            params[key] = value
+        self.__init__(**params)
+

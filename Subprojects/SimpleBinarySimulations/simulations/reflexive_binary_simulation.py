@@ -20,9 +20,3 @@ class ReflexiveBinarySimulation(BaseSimulation):
             self.step_count += 1
             sample = self.random.choice([0.0, 1.], self.shape)
             return sample, sample.copy(), np.array(0.0)
-
-    def __iter__(self):
-        return ReflexiveBinarySimulation(self)
-
-    def reset(self):
-        pass
