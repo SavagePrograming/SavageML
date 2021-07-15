@@ -87,3 +87,9 @@ def test_simulation_iterates():
     for _ in simulation:
         inside_loop_ran = True
     assert inside_loop_ran
+
+
+def test_simulation_duplicates():
+    simulation = BaseSimulation(seed=1)
+    simulation_duplicate = simulation.__iter__()
+    assert simulation.random.random() == simulation_duplicate.random.random()
