@@ -3,7 +3,7 @@ from typing import Tuple, Union, Any
 import numpy as np
 from numpy import ndarray
 
-from savageml.simulations import BaseSimulation
+from savageml.simulations import BaseSimulation, SimulationState
 
 
 class ReflexiveBinarySimulation(BaseSimulation):
@@ -15,8 +15,12 @@ class ReflexiveBinarySimulation(BaseSimulation):
 
     def step(self, visualize=False) -> Tuple[Union[ndarray, Any], Union[ndarray, Any], ndarray]:
         if self.step_count >= self.max_steps:
-            raise StopIteration
+            self.state = SimulationState.COMPLETE
         else:
             self.step_count += 1
+            if self.step_count >= self.max_steps:
+                self.state = SimulationState.COMPLETE
+            else:
+                self.state = SimulationState.RUNNING
             sample = self.random.choice([0.0, 1.], self.shape)
             return sample, sample.copy(), np.array(0.0)

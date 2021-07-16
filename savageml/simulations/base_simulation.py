@@ -46,13 +46,20 @@ class BaseSimulation:
                                    " follow this convention."
                                    % (cls, init_signature))
         # Extract and sort argument names excluding 'self'
-        return sorted([p.name for p in parameters])
+        parameters = [p.name for p in parameters]
+        for base in cls.__bases__:
+            if hasattr(base, "_get_param_names"):
+                parameters = parameters + base._get_param_names()
+
+        return sorted(parameters)
 
     def __iter__(self):
         params = dict()
         for key in self._get_param_names():
             value = getattr(self, key)
             params[key] = value
+        print()
+        print(params)
         return self.__class__(**params)
 
     def __next__(self):
