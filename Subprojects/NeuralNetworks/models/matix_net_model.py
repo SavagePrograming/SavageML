@@ -6,8 +6,10 @@ from Nets.Net import Net
 from formulas import distance_formula, sigmoid, sigmoid_der, color_formula, draw_circle, map_helper, \
     draw_circle_helper, color_formula_line_helper, draw_line_helper, dim, map_helper_clean
 
+from savageml.models import BaseModel
 
-class MatrixNet(Net):
+
+class MatrixNetModel(BaseModel):
     def __init__(self,
                  dimensions: List[int],
                  weight_range: Tuple[float, float],
