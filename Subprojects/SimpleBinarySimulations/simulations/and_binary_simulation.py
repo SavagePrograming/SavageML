@@ -22,6 +22,10 @@ class AndBinarySimulation(BaseSimulation):
             else:
                 self.state = SimulationState.RUNNING
             sample = self.random.choice([0.0, 1.], self.shape)
-            output = np.array(((sample == 1.0).all())).astype(float)
-            prediction = self.model.predict(sample)
-            return sample, output, self.loss_function(output, prediction)
+            output = np.array(((sample == 1.0).all())).astype(float).reshape((1,))
+            if self.model is not None:
+                prediction = self.model.predict(sample)
+                loss = self.loss_function(sample, prediction)
+            else:
+                loss = None
+            return sample, output, loss
