@@ -1,10 +1,11 @@
 import types
-from typing import Tuple, List, Callable, Union
+from typing import Tuple, List, Callable, Union, Iterable
 import numpy as np
 
 from ..utility import ActivationFunctions, ActivationFunctionsDerivatives
 from savageml.utility import LossFunctions
 from savageml.models import BaseModel
+from ..utility.generic_functions import get_x_y_from_iterator
 
 
 class MatrixNetModel(BaseModel):
@@ -50,24 +51,46 @@ class MatrixNetModel(BaseModel):
             output[index:index + batch_size, :] = batch
         return output
 
-    def fit(self, x: Union[np.ndarray, types.GeneratorType, List], y: np.ndarray = None, batch_size=None):
+    def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=None, iteration_limit=None):
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
-            self._fit_ndarray()
+            for batch_start in range(0, min(iteration_limit, x.shape[0]), batch_size):
+                self._fit_batch(x[batch_start: batch_start + batch_size, :],
+                                y[batch_start: batch_start + batch_size, :],
+                                learning_rate)
         else:
+            data_iterator = iter(x)
 
+            has_sample, x_sample, y_sample = get_x_y_from_iterator(data_iterator)
 
-    def _fit_ndarray(self):
-        pass
+            assert has_sample, "Data source should have at least one sample"
+            assert isinstance(x_sample, np.ndarray), "x should be np array"
+            assert isinstance(y_sample, np.ndarray), "y should be np array"
 
-    def _fit_list(self):
-        pass
+            x_batch = np.zeros((batch_size, x_sample.shape[1]))
+            y_batch = np.zeros((batch_size, y_sample.shape[1]))
+            count = 0
 
-    def _fit_generator(self):
-        pass
+            while has_sample and (iteration_limit is None or count < iteration_limit):
+                x_batch[(count % batch_size):(count % batch_size) + 1, :] = x_sample
+                y_batch[(count % batch_size):(count % batch_size) + 1, :] = y_sample
+                count += 1
 
-    def _fit_batch(self, x: np.ndarray, y: np.ndarray):
+                if (count % batch_size) >= batch_size:
+                    self._fit_batch(x_batch, y_batch, learning_rate)
+
+                    x_batch[:, :] = 0
+                    y_batch[:, :] = 0
+
+                has_sample, x_sample, y_sample = get_x_y_from_iterator(data_iterator)
+
+            if (count % batch_size) > 0:
+                self._fit_batch(x_batch[:count % batch_size, :],
+                                y_batch[:count % batch_size, :],
+                                learning_rate)
+
+    def _fit_batch(self, x: np.ndarray, y: np.ndarray, learning_rate):
         assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
         assert y.shape[1] >= self.dimensions[-1], "y entries too small"
         assert y.shape[1] <= self.dimensions[-1], "y entries too large"
@@ -109,77 +132,3 @@ class MatrixNetModel(BaseModel):
         self.weight_array[0] = np.add(self.weight_array[0], current)
 
         return error
-
-    # def update(self, screen: pygame.Surface, x: int, y: int, width: int, height: int, scale_dot: int = 5):
-    #     self.screen = screen
-    #     self.x = x
-    #     self.y = y
-    #     self.width = width
-    #     self.height = height
-    #     self.scale_dot = scale_dot
-    #     self.scale_y = (self.height - self.scale_dot * 2) // max(self.dimensions)
-    #     self.scale_x = (self.width - self.scale_dot * 2) // (len(self.dimensions) - 1)
-    # 
-    #     self.in_screen = [self.screen] * len(self.input_array)
-    #     self.in_scale = [self.scale_dot] * len(self.input_array)
-    # 
-    #     self.in_loc = np.zeros((self.in_dem, 2)).astype(int)
-    #     self.in_loc[:, 0:1] = np.add(self.in_loc[:, 0:1], self.x + self.scale_dot)
-    #     self.in_loc[:, 1:2] = np.add(self.y + self.scale_dot, np.multiply(self.scale_y,
-    #                                                                             np.add(self.in_loc[:, 1:2],
-    #                                                                                       np.reshape(
-    #                                                                                           range(self.in_dem),
-    #                                                                                           (self.in_dem, 1)))))
-    # 
-    #     self.layers_color_formulas = [self.color_formula] * len(self.nodes_value_array)
-    #     self.layers_screen = [[self.screen] * len(self.nodes_value_array[i])
-    #                           for i in range(len(self.nodes_value_array))]
-    #     self.layers_scale = [[self.scale_dot] * len(self.nodes_value_array[i]) for i in
-    #                          range(len(self.nodes_value_array))]
-    # 
-    #     layers_loc_x = np.concatenate((
-    #         np.add(self.x + self.scale_dot, np.multiply(self.scale_x,
-    #                                                           np.reshape(range(1, len(self.nodes_value_array) + 1),
-    #                                                                         (len(self.nodes_value_array), 1, 1)))),
-    #         np.zeros((len(self.nodes_value_array), 1, 1))
-    #     ), 2)
-    # 
-    #     self.layers_loc = [np.add(np.concatenate((
-    #         np.zeros((len(self.nodes_value_array[x_]), 1)),
-    #         np.add(self.y + self.scale_dot, np.multiply(self.scale_y,
-    #                                                           np.reshape(range(len(self.nodes_value_array[x_])),
-    #                                                                         (len(self.nodes_value_array[x_]),
-    #                                                                          1))))), axis=1),
-    #         layers_loc_x[x_]).astype(int) for x_ in range(len(self.nodes_value_array))]
-    # 
-    #     self.line_screen = [[[self.screen] * len(self.weight_array[x_][y_])
-    #                          for y_ in range(len(self.nodes_value_array[x_]))]
-    #                         for x_ in range(len(self.nodes_value_array))]
-    #     self.line_scale = [[[1] * len(self.weight_array[x_][y_])
-    #                         for y_ in range(len(self.nodes_value_array[x_]))]
-    #                        for x_ in range(len(self.nodes_value_array))]
-    # 
-    #     self.line_color_formulas = [color_formula_line_helper] * len(self.weight_array)
-    #     self.line_draw_formulas = [draw_line_helper] * len(self.weight_array)
-    # 
-    #     self.line_location_start = [[[[self.x + self.scale_dot + (x_ + 1) * self.scale_x,
-    #                                    self.y + self.scale_dot + y_ * self.scale_y]] * len(self.weight_array[x_][y_])
-    #                                  for y_ in range(len(self.nodes_value_array[x_]))]
-    #                                 for x_ in range(len(self.nodes_value_array))]
-    #     self.line_location_end = [[[[self.x + self.scale_dot + x_ * self.scale_x,
-    #                                  self.y + self.scale_dot + y2 * self.scale_y] for y2 in
-    #                                 range(len(self.weight_array[x_][y_]))] for y_ in
-    #                                range(len(self.nodes_value_array[x_]))] for x_ in
-    #                               range(len(self.nodes_value_array))]
-    # 
-    # def update_colors(self):
-    #     self.in_colors = list(map(self.color_formula, self.input_array))
-    #     self.layers_colors = list(map(map_helper, self.layers_color_formulas, self.nodes_value_array))
-    #     self.line_colors = list(map(map_helper, self.line_color_formulas, self.weight_array))
-    # 
-    # def draw(self):
-    #     self.update_colors()
-    #     any(map(draw_circle, self.in_screen, self.in_colors, self.in_loc, self.in_scale))
-    #     any(map(draw_circle_helper, self.layers_screen, self.layers_colors, self.layers_loc, self.layers_scale))
-    #     any(map(map_helper_clean, self.line_draw_formulas, self.line_screen, self.line_colors, self.line_location_start,
-    #             self.line_location_end, self.line_scale, self.line_scale))
