@@ -1,1 +1,1 @@
-from .loss_functions import LossFunctions
+from .loss_functions import LossFunctions, LossFunctionDerivatives

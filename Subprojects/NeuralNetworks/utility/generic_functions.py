@@ -1,6 +1,6 @@
-def get_x_y_from_iterator(data_iterator):
+def get_sample_from_iterator(data_iterator):
     try:
-        x_sample, y_sample = data_iterator.__next__()
-        return True, x_sample, y_sample
+        sample = data_iterator.__next__()
+        return True, sample
     except StopIteration:
-        return False, None, None
+        return False, None
