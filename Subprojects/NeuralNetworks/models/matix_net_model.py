@@ -1,11 +1,10 @@
-import types
-from typing import Tuple, List, Callable, Union, Iterable
+from typing import Tuple, List, Callable, Iterable, Union
 import numpy as np
 
-from ..utility import ActivationFunctions, ActivationFunctionsDerivatives
-from savageml.utility import LossFunctions
+from Subprojects.NeuralNetworks.utility import ActivationFunctions, ActivationFunctionsDerivatives
+from savageml.utility import LossFunctions, LossFunctionDerivatives
 from savageml.models import BaseModel
-from ..utility.generic_functions import get_x_y_from_iterator
+from Subprojects.NeuralNetworks.utility.generic_functions import get_sample_from_iterator
 
 
 class MatrixNetModel(BaseModel):
@@ -15,11 +14,12 @@ class MatrixNetModel(BaseModel):
                  activation_function: Callable = ActivationFunctions.SIGMOID,
                  activation_derivative: Callable = ActivationFunctionsDerivatives.SIGMOID_DERIVATIVE,
                  loss_function=LossFunctions.MSE,
+                 loss_function_derivative=LossFunctionDerivatives.MSE_DERIVATIVE,
                  weight_array: List[np.array] = None,
                  **kwargs):
-
         super().__init__(**kwargs)
         self.loss_function = loss_function
+        self.loss_function_derivative = loss_function_derivative
         self.activation_function = activation_function
         self.activation_derivative = activation_derivative
         self.dimensions = dimensions
@@ -35,21 +35,71 @@ class MatrixNetModel(BaseModel):
                         self.weight_range[1] - self.weight_range[0]) + self.weight_range[1]
                 self.weight_array.append(weight_array)
 
-    def predict(self, x: np.ndarray, batch_size=None) -> np.ndarray:
-        if batch_size is None:
-            batch_size = x.shape[0]
+    def predict(self, x: Union[np.ndarray, Iterable], batch_size=None, iteration_limit=None) -> np.ndarray:
+        if isinstance(x, np.ndarray):
+            if batch_size is None:
+                batch_size = x.shape[0]
 
-        output = np.zeros((x.shape[0], self.dimensions[-1]))
+            output = np.zeros((x.shape[0], self.dimensions[-1]))
 
-        for index in range(0, x.shape[0], batch_size):
-            batch = x[index: index + batch_size]
+            for index in range(0, x.shape[0], batch_size):
+                batch = x[index: index + batch_size]
 
-            for i in range(len(self.weight_array)):
-                batch = np.concatenate([batch, np.ones((batch_size, 1))], axis=1)
-                batch = self.activation_function(batch @ self.weight_array[i])
+                processed_batch = self._predict_batch(batch)
 
-            output[index:index + batch_size, :] = batch
-        return output
+                output[index:index + batch_size, :] = processed_batch
+            return output
+        else:
+            assert isinstance(x, Iterable)
+            data_iterator = iter(x)
+            if iteration_limit is None:
+                iteration_limit = sum(1 for _ in iter(x))
+            if batch_size is None:
+                batch_size = iteration_limit
+
+            has_sample, sample = get_sample_from_iterator(data_iterator)
+            x_sample = sample[0]
+
+            output = np.zeros((iteration_limit, self.dimensions[-1]))
+            output_index = 0
+
+            assert has_sample, "Data source should have at least one sample"
+            assert isinstance(x_sample, np.ndarray), "x should be np array"
+
+            x_batch = np.zeros((batch_size, x_sample.shape[0]))
+            count = 0
+
+            while has_sample and (iteration_limit is None or count < iteration_limit):
+                x_batch[(count % batch_size):(count % batch_size) + 1, :] = x_sample
+                count += 1
+
+                if (count % batch_size) == 0:
+                    prediction = self._predict_batch(x_batch)
+
+                    x_batch[:, :] = 0
+                    output[output_index: output_index+batch_size, :] = prediction
+                    output_index += batch_size
+
+                has_sample, sample = get_sample_from_iterator(data_iterator)
+                if has_sample:
+                    x_sample = sample[0]
+
+            if (count % batch_size) > 0:
+                prediction = self._predict_batch(x_batch[:count % batch_size, :])
+
+                output[output_index: output_index + count % batch_size, :] = prediction
+                output_index += count % batch_size
+            return output[:output_index, :]
+
+    def _predict_batch(self, x: np.ndarray):
+        batch = x
+        batch_size = x.shape[0]
+
+        for i in range(len(self.weight_array)):
+            batch = np.concatenate([batch, np.ones((batch_size, 1))], axis=1)
+            batch = self.activation_function(batch @ self.weight_array[i])
+
+        return batch
 
     def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=None, iteration_limit=None):
         if y is not None:
@@ -62,7 +112,8 @@ class MatrixNetModel(BaseModel):
         else:
             data_iterator = iter(x)
 
-            has_sample, x_sample, y_sample = get_x_y_from_iterator(data_iterator)
+            has_sample, sample = get_sample_from_iterator(data_iterator)
+            x_sample, y_sample = sample[0], sample[1]
 
             assert has_sample, "Data source should have at least one sample"
             assert isinstance(x_sample, np.ndarray), "x should be np array"
@@ -83,7 +134,8 @@ class MatrixNetModel(BaseModel):
                     x_batch[:, :] = 0
                     y_batch[:, :] = 0
 
-                has_sample, x_sample, y_sample = get_x_y_from_iterator(data_iterator)
+                has_sample, sample = get_sample_from_iterator(data_iterator)
+                x_sample, y_sample = sample[0], sample[1]
 
             if (count % batch_size) > 0:
                 self._fit_batch(x_batch[:count % batch_size, :],
@@ -96,6 +148,37 @@ class MatrixNetModel(BaseModel):
         assert y.shape[1] <= self.dimensions[-1], "y entries too large"
         assert x.shape[1] >= self.dimensions[0], "x entries too small"
         assert x.shape[1] <= self.dimensions[0], "x entries too large"
+        size = y.shape[0]
+
+        layer_values = []
+        layer_values_bias = []
+
+        # Forward Propagation
+        layer_values.append(x)
+
+        for i in range(len(self.weight_array)):
+            biased_batch = np.concatenate([layer_values[-1], np.ones((size, 1))], axis=1)
+            layer_values_bias.append(biased_batch)
+            batch = self.activation_function(biased_batch @ self.weight_array[i])
+            layer_values.append(batch)
+
+        prediction = layer_values[-1]
+        loss_derivative = self.loss_function_derivative(y, prediction)
+        current_derivative = loss_derivative
+
+        weights_update = [np.zeros_like(weight_array) for weight_array in self.weight_array]
+
+        for i in range(len(self.weight_array) - 1, -1, -1):
+            dL_da = current_derivative * self.activation_derivative(layer_values[i])
+            node_update = self.weight_array[i].T @ dL_da
+            weight_update = layer_values_bias[i].T @ dL_da
+            assert weight_update.shape[1] == self.weight_array[i].shape[1]
+            assert node_update.shape[1] == layer_values_bias[i].shape[1]
+
+            weights_update[i] = weight_update * learning_rate
+            current_derivative = np.sum(weight_update, axis=0, keepdims=True)[:, -1]
+
+        return current_derivative
 
     def _learn(self, ratio: float, target: List[int]):
         target_length = len(target)
