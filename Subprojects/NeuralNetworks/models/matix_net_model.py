@@ -105,7 +105,15 @@ class MatrixNetModel(BaseModel):
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
-            for batch_start in range(0, min(iteration_limit, x.shape[0]), batch_size):
+
+            if iteration_limit is None:
+                iteration_limit = x.shape[0]
+            iteration_limit = min(iteration_limit, x.shape[0])
+
+            if batch_size is None:
+                batch_size = x.shape[0]
+
+            for batch_start in range(0, iteration_limit, batch_size):
                 self._fit_batch(x[batch_start: batch_start + batch_size, :],
                                 y[batch_start: batch_start + batch_size, :],
                                 learning_rate)
@@ -163,14 +171,14 @@ class MatrixNetModel(BaseModel):
             layer_values.append(batch)
 
         prediction = layer_values[-1]
-        loss_derivative = self.loss_function_derivative(y, prediction)
+        loss_derivative = self.loss_function_derivative(y, prediction, axis=1)
         current_derivative = loss_derivative
 
         weights_update = [np.zeros_like(weight_array) for weight_array in self.weight_array]
 
         for i in range(len(self.weight_array) - 1, -1, -1):
-            dL_da = current_derivative * self.activation_derivative(layer_values[i])
-            node_update = self.weight_array[i].T @ dL_da
+            dL_da = current_derivative * self.activation_derivative(layer_values[i + 1])
+            node_update = dL_da @ self.weight_array[i].T
             weight_update = layer_values_bias[i].T @ dL_da
             assert weight_update.shape[1] == self.weight_array[i].shape[1]
             assert node_update.shape[1] == layer_values_bias[i].shape[1]
