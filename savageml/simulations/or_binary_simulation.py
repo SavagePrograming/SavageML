@@ -21,8 +21,8 @@ class OrBinarySimulation(BaseSimulation):
                 self.state = SimulationState.COMPLETE
             else:
                 self.state = SimulationState.RUNNING
-            sample = self.random.choice([0.0, 1.], self.shape)
-            output = np.array(((sample == 1.0).any())).astype(float).reshape((1,))
+            sample = self.random.choice([0.0, 1.], (1,) + self.shape)
+            output = np.array(((sample == 1.0).any())).astype(float).reshape((1,1))
             if self.model is not None:
                 prediction = self.model.predict(sample)
                 loss = self.loss_function(sample, prediction)

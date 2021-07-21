@@ -20,7 +20,7 @@ class ReflexiveBinarySimulation(BaseSimulation):
                 self.state = SimulationState.COMPLETE
             else:
                 self.state = SimulationState.RUNNING
-            sample = self.random.choice([0.0, 1.], self.shape)
+            sample = self.random.choice([0.0, 1.], (1,) + self.shape)
             if self.model is not None:
                 prediction = self.model.predict(sample)
                 loss = self.loss_function(sample, prediction)

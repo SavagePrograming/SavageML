@@ -101,7 +101,7 @@ class MatrixNetModel(BaseModel):
 
         return batch
 
-    def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=None, iteration_limit=None):
+    def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
@@ -143,7 +143,8 @@ class MatrixNetModel(BaseModel):
                     y_batch[:, :] = 0
 
                 has_sample, sample = get_sample_from_iterator(data_iterator)
-                x_sample, y_sample = sample[0], sample[1]
+                if has_sample:
+                    x_sample, y_sample = sample[0], sample[1]
 
             if (count % batch_size) > 0:
                 self._fit_batch(x_batch[:count % batch_size, :],
