@@ -4,7 +4,8 @@ import numpy as np
 from Subprojects.NeuralNetworks.utility import ActivationFunctions, ActivationFunctionsDerivatives
 from savageml.utility import LossFunctions, LossFunctionDerivatives
 from savageml.models import BaseModel
-from Subprojects.NeuralNetworks.utility.generic_functions import get_sample_from_iterator
+from Subprojects.NeuralNetworks.utility import get_sample_from_iterator, batch_iterator, \
+    batch_np_array
 
 
 class MatrixNetModel(BaseModel):
@@ -32,124 +33,69 @@ class MatrixNetModel(BaseModel):
             self.weight_array = []
             for i in range(1, len(dimensions)):
                 weight_array = np.random.random((dimensions[i - 1] + 1, dimensions[i])) * (
-                        self.weight_range[1] - self.weight_range[0]) + self.weight_range[1]
+                        self.weight_range[1] - self.weight_range[0]) + self.weight_range[0]
                 self.weight_array.append(weight_array)
 
-    def predict(self, x: Union[np.ndarray, Iterable], batch_size=None, iteration_limit=None) -> np.ndarray:
+    def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
         if isinstance(x, np.ndarray):
-            if batch_size is None:
-                batch_size = x.shape[0]
 
-            output = np.zeros((x.shape[0], self.dimensions[-1]))
+            output = np.zeros((0, self.dimensions[-1]))
 
-            for index in range(0, x.shape[0], batch_size):
-                batch = x[index: index + batch_size]
+            if iteration_limit is not None and x.shape[0] > iteration_limit:
+                x = x[:iteration_limit]
 
-                processed_batch = self._predict_batch(batch)
+            for batch in batch_np_array(x, batch_size):
 
-                output[index:index + batch_size, :] = processed_batch
+                prediction = self._predict_batch(batch)
+
+                output = np.concatenate([output, prediction], axis=0)
+
             return output
         else:
             assert isinstance(x, Iterable)
-            data_iterator = iter(x)
-            if iteration_limit is None:
-                iteration_limit = sum(1 for _ in iter(x))
-            if batch_size is None:
-                batch_size = iteration_limit
 
-            has_sample, sample = get_sample_from_iterator(data_iterator)
-            x_sample = sample[0]
+            output = np.zeros((0, self.dimensions[-1]))
 
-            output = np.zeros((iteration_limit, self.dimensions[-1]))
-            output_index = 0
+            for sample_batch in batch_iterator(x, batch_size):
+                x_batch_list = [sample[0] for sample in sample_batch]
+                x_batch = np.concatenate(x_batch_list, axis=0)
 
-            assert has_sample, "Data source should have at least one sample"
-            assert isinstance(x_sample, np.ndarray), "x should be np array"
+                prediction = self._predict_batch(x_batch)
 
-            x_batch = np.zeros((batch_size, x_sample.shape[0]))
-            count = 0
+                output = np.concatenate([output, prediction], axis=0)
 
-            while has_sample and (iteration_limit is None or count < iteration_limit):
-                x_batch[(count % batch_size):(count % batch_size) + 1, :] = x_sample
-                count += 1
-
-                if (count % batch_size) == 0:
-                    prediction = self._predict_batch(x_batch)
-
-                    x_batch[:, :] = 0
-                    output[output_index: output_index+batch_size, :] = prediction
-                    output_index += batch_size
-
-                has_sample, sample = get_sample_from_iterator(data_iterator)
-                if has_sample:
-                    x_sample = sample[0]
-
-            if (count % batch_size) > 0:
-                prediction = self._predict_batch(x_batch[:count % batch_size, :])
-
-                output[output_index: output_index + count % batch_size, :] = prediction
-                output_index += count % batch_size
-            return output[:output_index, :]
+            return output
 
     def _predict_batch(self, x: np.ndarray):
-        batch = x
-        batch_size = x.shape[0]
+        size = x.shape[0]
+        layer = x
 
-        for i in range(len(self.weight_array)):
-            batch = np.concatenate([batch, np.ones((batch_size, 1))], axis=1)
-            batch = self.activation_function(batch @ self.weight_array[i])
+        for weights in self.weight_array:
+            layer_bias = np.concatenate([layer, np.ones((size, 1))], axis=1)
+            layer = self.activation_function(layer_bias @ weights)
 
-        return batch
+        return layer
 
     def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
 
-            if iteration_limit is None:
-                iteration_limit = x.shape[0]
-            iteration_limit = min(iteration_limit, x.shape[0])
+            if iteration_limit is not None and x.shape[0] > iteration_limit:
+                x = x[:iteration_limit]
+                y = y[:iteration_limit]
 
-            if batch_size is None:
-                batch_size = x.shape[0]
-
-            for batch_start in range(0, iteration_limit, batch_size):
-                self._fit_batch(x[batch_start: batch_start + batch_size, :],
-                                y[batch_start: batch_start + batch_size, :],
-                                learning_rate)
+            for x_batch, y_batch in zip(batch_np_array(x, batch_size), batch_np_array(y, batch_size)):
+                self._fit_batch(x_batch, y_batch, learning_rate)
         else:
-            data_iterator = iter(x)
+            for sample_batch in batch_iterator(x, batch_size):
+                x_batch_list = [sample[0] for sample in sample_batch]
+                y_batch_list = [sample[1] for sample in sample_batch]
 
-            has_sample, sample = get_sample_from_iterator(data_iterator)
-            x_sample, y_sample = sample[0], sample[1]
+                x_batch = np.concatenate(x_batch_list, axis=0)
+                y_batch = np.concatenate(y_batch_list, axis=0)
 
-            assert has_sample, "Data source should have at least one sample"
-            assert isinstance(x_sample, np.ndarray), "x should be np array"
-            assert isinstance(y_sample, np.ndarray), "y should be np array"
-
-            x_batch = np.zeros((batch_size, x_sample.shape[1]))
-            y_batch = np.zeros((batch_size, y_sample.shape[1]))
-            count = 0
-
-            while has_sample and (iteration_limit is None or count < iteration_limit):
-                x_batch[(count % batch_size):(count % batch_size) + 1, :] = x_sample
-                y_batch[(count % batch_size):(count % batch_size) + 1, :] = y_sample
-                count += 1
-
-                if (count % batch_size) >= batch_size:
-                    self._fit_batch(x_batch, y_batch, learning_rate)
-
-                    x_batch[:, :] = 0
-                    y_batch[:, :] = 0
-
-                has_sample, sample = get_sample_from_iterator(data_iterator)
-                if has_sample:
-                    x_sample, y_sample = sample[0], sample[1]
-
-            if (count % batch_size) > 0:
-                self._fit_batch(x_batch[:count % batch_size, :],
-                                y_batch[:count % batch_size, :],
-                                learning_rate)
+                self._fit_batch(x_batch, y_batch, learning_rate)
 
     def _fit_batch(self, x: np.ndarray, y: np.ndarray, learning_rate):
         assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
@@ -157,35 +103,41 @@ class MatrixNetModel(BaseModel):
         assert y.shape[1] <= self.dimensions[-1], "y entries too large"
         assert x.shape[1] >= self.dimensions[0], "x entries too small"
         assert x.shape[1] <= self.dimensions[0], "x entries too large"
-        size = y.shape[0]
-
         layer_values = []
         layer_values_bias = []
 
         # Forward Propagation
-        layer_values.append(x)
 
-        for i in range(len(self.weight_array)):
-            biased_batch = np.concatenate([layer_values[-1], np.ones((size, 1))], axis=1)
-            layer_values_bias.append(biased_batch)
-            batch = self.activation_function(biased_batch @ self.weight_array[i])
-            layer_values.append(batch)
+        size = x.shape[0]
+        layer = x
+
+        for weights in self.weight_array:
+            layer_bias = np.concatenate([layer, np.ones((size, 1))], axis=1)
+            layer = self.activation_function(layer_bias @ weights)
+
+            layer_values_bias.append(layer_bias)
+            layer_values.append(layer)
 
         prediction = layer_values[-1]
-        loss_derivative = self.loss_function_derivative(y, prediction, axis=1)
-        current_derivative = loss_derivative
+        current_derivative = self.loss_function_derivative(y, prediction, axis=1)
 
-        weights_update = [np.zeros_like(weight_array) for weight_array in self.weight_array]
+        weights_update = []
 
-        for i in range(len(self.weight_array) - 1, -1, -1):
-            dL_da = current_derivative * self.activation_derivative(layer_values[i + 1])
-            node_update = dL_da @ self.weight_array[i].T
-            weight_update = layer_values_bias[i].T @ dL_da
-            assert weight_update.shape[1] == self.weight_array[i].shape[1]
-            assert node_update.shape[1] == layer_values_bias[i].shape[1]
+        for result, layer, weights in zip(reversed(layer_values),
+                                 reversed(layer_values_bias),
+                                 reversed(self.weight_array)):
+            dL_da = current_derivative * self.activation_derivative(result)
+            node_update = dL_da @ weights.T
+            weight_update = layer.T @ dL_da
 
-            weights_update[i] = weight_update * learning_rate
-            current_derivative = np.sum(weight_update, axis=0, keepdims=True)[:, -1]
+            weights_update.append(weight_update * learning_rate)
+            current_derivative = np.sum(node_update, axis=0, keepdims=True)[:, :-1]
+
+        new_weights = []
+        for weight_update, weights in zip(reversed(weights_update), self.weight_array):
+            new_weights.append(weights + weight_update)
+
+        self.weight_array = new_weights
 
         return current_derivative
 
