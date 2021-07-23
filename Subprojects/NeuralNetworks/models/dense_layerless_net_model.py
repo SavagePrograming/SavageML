@@ -23,14 +23,18 @@ class DenseLayerlessNetModel(BaseModel):
                  **kwargs):
         super().__init__(**kwargs)
         self.network_connections = network_connections
+        
         self.output_dimension = output_dimension
         self.hidden_dimension = hidden_dimension
         self.bias_dimension = 1
         self.input_dimension = input_dimension
+        
         self.loss_function = loss_function
         self.loss_function_derivative = loss_function_derivative
+        
         self.activation_function = activation_function
         self.activation_derivative = activation_derivative
+        
         self.weight_range = weight_range
 
         self.weight_array: List[np.array] = weight_array
@@ -102,6 +106,7 @@ class DenseLayerlessNetModel(BaseModel):
             new_node = self.activation_function(layer @ weights)
             layer = np.concatenate([layer, new_node], axis=1)
         output = self.activation_function(layer @ self.output_weights)
+        
         return output
 
     def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
@@ -144,20 +149,23 @@ class DenseLayerlessNetModel(BaseModel):
 
         current_derivative = self.loss_function_derivative(y, prediction, axis=1)
 
-        dL_da = current_derivative * self.activation_derivative(prediction)
-        output_weights_update = (layer.T @ dL_da) * learning_rate
-        current_derivative = dL_da @ self.output_weights.T
+        dl_da = current_derivative * self.activation_derivative(prediction)
+        output_weights_update = (layer.T @ dl_da) * learning_rate
+        current_derivative = dl_da @ self.output_weights.T
 
         weights_update = []
 
         for weights in reversed(self.weight_array):
             result = layer[:, -1:]
             layer = layer[:, :-1]
+            
             result_derivative = current_derivative[:, -1:]
             current_derivative = current_derivative[:, :-1]
-            dL_da = result_derivative * self.activation_derivative(result)
-            node_update = dL_da @ weights.T
-            weight_update = layer.T @ dL_da
+            
+            dl_da = result_derivative * self.activation_derivative(result)
+            
+            node_update = dl_da @ weights.T
+            weight_update = layer.T @ dl_da
 
             weights_update.append(weight_update * learning_rate)
             current_derivative = current_derivative + node_update
