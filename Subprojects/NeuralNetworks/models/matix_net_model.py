@@ -125,9 +125,9 @@ class MatrixNetModel(BaseModel):
         for result, layer, weights in zip(reversed(layer_values),
                                  reversed(layer_values_bias),
                                  reversed(self.weight_array)):
-            dL_da = current_derivative * self.activation_derivative(result)
-            node_update = dL_da @ weights.T
-            weight_update = layer.T @ dL_da
+            dl_da = current_derivative * self.activation_derivative(result)
+            node_update = dl_da @ weights.T
+            weight_update = layer.T @ dl_da
 
             weights_update.append(weight_update * learning_rate)
             current_derivative = np.sum(node_update, axis=0, keepdims=True)[:, :-1]
