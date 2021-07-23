@@ -8,7 +8,7 @@ from Subprojects.NeuralNetworks.utility import get_sample_from_iterator, batch_i
     batch_np_array
 
 
-class DenseLayerlessNetModel(BaseModel):
+class SparseLayerlessNetModel(BaseModel):
     def __init__(self,
                  input_dimension: int,
                  hidden_dimension: int,
@@ -45,6 +45,11 @@ class DenseLayerlessNetModel(BaseModel):
         self.input_hidden_weights: np.ndarray = input_hidden_weights
         self.hidden_hidden_weights: np.ndarray = hidden_hidden_weights
         self.hidden_output_weights: np.ndarray = hidden_output_weights
+
+        self.hidden_hidden_weights_clear = np.zeros((self.hidden_dimension, self.hidden_dimension))
+        for i in range(self.hidden_dimension):
+            for j in range(i+1, self.hidden_dimension):
+                self.hidden_hidden_weights_clear[i, j] = 1.0
 
         if self.input_output_weights is None:
             # Make output weights
@@ -89,7 +94,7 @@ class DenseLayerlessNetModel(BaseModel):
                             index = i - (self.bias_dimension + self.input_dimension)
                             connection_array[connection, index] = 1.0
                 weight_array = weight_array * connection_array
-            self.hidden_hidden_weights = weight_array
+            self.hidden_hidden_weights = self.hidden_hidden_weights_clear * weight_array
 
         if self.hidden_output_weights is None:
             # Make output weights
@@ -105,7 +110,7 @@ class DenseLayerlessNetModel(BaseModel):
                             index = i - (self.bias_dimension + self.input_dimension + self.hidden_dimension)
                             connection_array[connection, index] = 1.0
                 weight_array = weight_array * connection_array
-            self.hidden_hidden_weights = weight_array
+            self.hidden_output_weights = weight_array
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
         if isinstance(x, np.ndarray):
@@ -149,7 +154,7 @@ class DenseLayerlessNetModel(BaseModel):
             if (hidden_ == hidden).all():
                 break
 
-        output = self.activation_function(input @ self.input_output_weights + hidden * self.hidden_output_weights)
+        output = self.activation_function(input @ self.input_output_weights + hidden @ self.hidden_output_weights)
 
         return output
 
@@ -194,7 +199,7 @@ class DenseLayerlessNetModel(BaseModel):
             if (hidden_ == hidden).all():
                 break
 
-        prediction = self.activation_function(input @ self.input_output_weights + hidden * self.hidden_output_weights)
+        prediction = self.activation_function(input @ self.input_output_weights + hidden @ self.hidden_output_weights)
 
         # Back propagation
         input_derivatives: np.ndarray
@@ -208,18 +213,19 @@ class DenseLayerlessNetModel(BaseModel):
         input_output_weights_update = (input.T @ output_derivatives) * learning_rate
         hidden_output_weights_update = (hidden.T @ output_derivatives) * learning_rate
 
-        hidden_derivatives = output_derivatives @ self.hidden_output_weights.T
+        hidden_derivatives = output_derivatives @ self.hidden_output_weights.T * self.activation_derivative(hidden)
         for _ in range(self.hidden_dimension):
             hidden_derivatives_: np.ndarray = hidden
 
-            hidden_derivatives: np.ndarray = output_derivatives @ self.hidden_output_weights.T +\
-                                             hidden_derivatives @ self.hidden_hidden_weights.T
+            hidden_derivatives: np.ndarray = (output_derivatives @ self.hidden_output_weights.T +
+                                             hidden_derivatives @ self.hidden_hidden_weights.T) *\
+                                             self.activation_derivative(hidden)
 
             if (hidden_derivatives_ == hidden_derivatives).all():
                 break
 
         input_hidden_weights_update = (input.T @ hidden_derivatives) * learning_rate
-        hidden_hidden_weights_update = (hidden.T @ hidden_derivatives) * learning_rate
+        hidden_hidden_weights_update = (self.hidden_hidden_weights_clear * (hidden.T @ hidden_derivatives)) * learning_rate
 
         input_derivatives = output_derivatives @ self.hidden_output_weights.T +\
                             hidden_derivatives @ self.hidden_hidden_weights.T
