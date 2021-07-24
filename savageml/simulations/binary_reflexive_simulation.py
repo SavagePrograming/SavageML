@@ -2,7 +2,7 @@ from ..utility import LossFunctions
 from savageml.simulations import BaseSimulation, SimulationState
 
 
-class ReflexiveBinarySimulation(BaseSimulation):
+class BinaryReflexiveSimulation(BaseSimulation):
     def __init__(self, shape=(1,), max_steps=10, loss_function=LossFunctions.MSE, **kwargs):
         super().__init__(**kwargs)
         self.shape = shape

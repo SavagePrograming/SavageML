@@ -1,14 +1,14 @@
 import numpy.random
 
-from savageml.models import SparseLayerlessNetModel
-from savageml.simulations import XorBinarySimulation
+from savageml.models import LayerlessSparseNetModel
+from savageml.simulations import BinaryXorSimulation
 import numpy as np
 
 DATA_SIZE = 100
 DATA_WIDTH = 2
 OUT_WIDTH = 1
 HIDDEN_WIDTH = 10
-SIMULATION = XorBinarySimulation((DATA_WIDTH,), DATA_SIZE)
+SIMULATION = BinaryXorSimulation((DATA_WIDTH,), DATA_SIZE)
 RNG = numpy.random.default_rng(0)
 TEST_DATA = RNG.choice([0.0, 1.0], (DATA_SIZE, DATA_WIDTH))
 TEST_XOR = np.reshape((TEST_DATA[:, 0] != TEST_DATA[:, 1]), (DATA_SIZE, 1))
@@ -16,7 +16,7 @@ LEARNING_RATE = 0.01
 
 
 def test_predict_outputs_correct_size_ndarray():
-    model = SparseLayerlessNetModel(input_dimension=DATA_WIDTH,
+    model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
     prediction = model.predict(TEST_DATA)
@@ -24,7 +24,7 @@ def test_predict_outputs_correct_size_ndarray():
 
 
 def test_predict_outputs_correct_size_simulation():
-    model = SparseLayerlessNetModel(input_dimension=DATA_WIDTH,
+    model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
     prediction = model.predict(SIMULATION)
@@ -32,7 +32,7 @@ def test_predict_outputs_correct_size_simulation():
 
 
 def test_fit_x_y():
-    model = SparseLayerlessNetModel(input_dimension=DATA_WIDTH,
+    model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
     model.fit(TEST_DATA, TEST_XOR, LEARNING_RATE)
@@ -40,7 +40,7 @@ def test_fit_x_y():
 
 
 def test_fit_simulation():
-    model = SparseLayerlessNetModel(input_dimension=DATA_WIDTH,
+    model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
     model.fit(SIMULATION, learning_rate=LEARNING_RATE)
@@ -48,10 +48,10 @@ def test_fit_simulation():
 
 
 def test_fit_simulation_score():
-    model = SparseLayerlessNetModel(input_dimension=DATA_WIDTH,
+    model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
-    simulation = XorBinarySimulation((DATA_WIDTH,), 50000, seed=0)
+    simulation = BinaryXorSimulation((DATA_WIDTH,), 50000, seed=0)
     print()
     print(model.predict(np.array([[1.0, 0.0]])))
     print(model.predict(np.array([[0.0, 1.0]])))
