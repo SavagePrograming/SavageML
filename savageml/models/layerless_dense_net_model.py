@@ -8,7 +8,7 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
     batch_np_array
 
 
-class DenseLayerlessNetModel(BaseModel):
+class LayerlessDenseNetModel(BaseModel):
     def __init__(self,
                  input_dimension: int,
                  hidden_dimension: int,

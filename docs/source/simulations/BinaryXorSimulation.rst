@@ -3,8 +3,8 @@ import numpy as np
 from savageml.simulations import BaseSimulation, SimulationState
 
 
-class AndBinarySimulation(BaseSimulation):
-    def __init__(self, shape=(1,), max_steps=10, loss_function=LossFunctions.MSE, **kwargs):
+class BinaryXorSimulation(BaseSimulation):
+    def __init__(self, shape=(2,), max_steps=10, loss_function=LossFunctions.MSE, **kwargs):
         super().__init__(**kwargs)
         self.shape = shape
         self.max_steps = max_steps
@@ -22,7 +22,7 @@ class AndBinarySimulation(BaseSimulation):
             else:
                 self.state = SimulationState.RUNNING
             sample = self.random.choice([0.0, 1.], (1,) + self.shape)
-            output = np.array(((sample == 1.0).all())).astype(float).reshape((1,1))
+            output = np.array(((sample == 1.0).sum() == 1.0)).astype(float).reshape((1, 1))
             if self.model is not None:
                 prediction = self.model.predict(sample)
                 loss = self.loss_function(sample, prediction)

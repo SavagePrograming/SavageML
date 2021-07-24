@@ -1,14 +1,14 @@
 import numpy.random
 
 from savageml.models import MatrixNetModel
-from savageml.simulations import XorBinarySimulation
+from savageml.simulations import BinaryXorSimulation
 import numpy as np
 
 DATA_SIZE = 100
 DATA_WIDTH = 2
 OUT_WIDTH = 1
 DIMENSIONS = [DATA_WIDTH, 10, OUT_WIDTH]
-SIMULATION = XorBinarySimulation((DATA_WIDTH,), DATA_SIZE)
+SIMULATION = BinaryXorSimulation((DATA_WIDTH,), DATA_SIZE)
 RNG = numpy.random.default_rng(0)
 TEST_DATA = RNG.choice([0.0, 1.0], (DATA_SIZE, DATA_WIDTH))
 TEST_XOR = np.reshape((TEST_DATA[:, 0] != TEST_DATA[:, 1]), (DATA_SIZE, 1))
@@ -41,7 +41,7 @@ def test_fit_simulation():
 
 def test_fit_simulation_score():
     model = MatrixNetModel(DIMENSIONS)
-    simulation = XorBinarySimulation((DATA_WIDTH,), 50000, seed=0)
+    simulation = BinaryXorSimulation((DATA_WIDTH,), 50000, seed=0)
     print()
     print(model.predict(np.array([[1.0, 0.0]])))
     print(model.predict(np.array([[0.0, 1.0]])))
