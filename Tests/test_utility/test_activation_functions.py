@@ -1,6 +1,6 @@
 import numpy as np
 
-from Subprojects.NeuralNetworks.utility.activation_functions import sigmoid
+from savageml.utility.activation_functions import sigmoid
 
 
 def test_sigmoid():

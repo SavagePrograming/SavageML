@@ -1,10 +1,10 @@
 from typing import Tuple, List, Callable, Iterable, Union, Dict
 import numpy as np
 
-from Subprojects.NeuralNetworks.utility import ActivationFunctions, ActivationFunctionsDerivatives
+from savageml.utility import ActivationFunctions, ActivationFunctionsDerivatives
 from savageml.utility import LossFunctions, LossFunctionDerivatives
 from savageml.models import BaseModel
-from Subprojects.NeuralNetworks.utility import get_sample_from_iterator, batch_iterator, \
+from savageml.utility import get_sample_from_iterator, batch_iterator, \
     batch_np_array
 
 

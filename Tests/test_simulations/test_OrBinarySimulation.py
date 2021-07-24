@@ -36,10 +36,11 @@ def test_simulation_duplicates():
 
 def test_simulation_shape_correct():
     test_shape = (5, 7)
-    expected_out_shape = (1,)
+    expected_test_shape = (1, 5, 7)
+    expected_out_shape = (1, 1)
     simulation = OrBinarySimulation(seed=1, shape=test_shape)
     result = simulation.step()
-    assert result[0].shape == test_shape
+    assert result[0].shape == expected_test_shape
     assert result[1].shape == expected_out_shape
 
 

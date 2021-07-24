@@ -35,10 +35,11 @@ def test_reflexive_simulation_duplicates():
 
 def test_reflexive_simulation_shape_correct():
     test_shape = (5, 7)
+    expected_test_shape = (1, 5, 7)
     simulation = ReflexiveBinarySimulation(seed=1, shape=test_shape)
     result = simulation.step()
-    assert result[0].shape == test_shape
-    assert result[1].shape == test_shape
+    assert result[0].shape == expected_test_shape
+    assert result[1].shape == expected_test_shape
 
 
 def test_reflexive_simulation_reflexive():

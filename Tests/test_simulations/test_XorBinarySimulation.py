@@ -1,3 +1,5 @@
+import numpy as np
+
 from savageml.simulations import SimulationState
 from savageml.simulations import XorBinarySimulation
 
@@ -30,15 +32,16 @@ def test_simulation_duplicates():
     simulation = XorBinarySimulation(seed=1)
     simulation_duplicate = simulation.__iter__()
     assert simulation.get_seed() == simulation_duplicate.get_seed()
-    assert simulation.step() == simulation_duplicate.step()
+    assert all(np.all(val == dup_val) for val, dup_val in zip(simulation.step(), simulation_duplicate.step()))
 
 
 def test_simulation_shape_correct():
     test_shape = (5, 7)
-    expected_out_shape = (1,)
+    expected_test_shape = (1, 5, 7)
+    expected_out_shape = (1, 1)
     simulation = XorBinarySimulation(seed=1, shape=test_shape)
     result = simulation.step()
-    assert result[0].shape == test_shape
+    assert result[0].shape == expected_test_shape
     assert result[1].shape == expected_out_shape
 
 

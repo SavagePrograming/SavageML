@@ -1,6 +1,6 @@
 import numpy.random
 
-from Subprojects.NeuralNetworks.models import SparseLayerlessNetModel
+from savageml.models import SparseLayerlessNetModel
 from savageml.simulations import XorBinarySimulation
 import numpy as np
 
