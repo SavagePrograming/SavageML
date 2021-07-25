@@ -13,7 +13,7 @@ and simulations they can be tested on.
    This project is under active development.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    usage

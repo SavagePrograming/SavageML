@@ -3,4 +3,4 @@ from .simulation_state import SimulationState
 from .binary_reflexive_simulation import BinaryReflexiveSimulation
 from .binary_and_simulation import BinaryAndSimulation
 from .binary_or_simulation import BinaryOrSimulation
-from .xor_binary_simulation import BinaryXorSimulation
+from .binary_xor_simulation import BinaryXorSimulation
