@@ -9,6 +9,20 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 
 class MatrixNetModel(BaseModel):
+    """
+
+    Parameters
+    ----------
+    dimensions
+    weight_range
+    activation_function
+    activation_derivative
+    loss_function
+    loss_function_derivative
+    weight_array
+    kwargs
+    """
+
     def __init__(self,
                  dimensions: List[int],
                  weight_range: Tuple[float, float] = (-2.0, 2.0),
@@ -18,6 +32,8 @@ class MatrixNetModel(BaseModel):
                  loss_function_derivative=LossFunctionDerivatives.MSE_DERIVATIVE,
                  weight_array: List[np.array] = None,
                  **kwargs):
+        """Constructor Method"""
+
         super().__init__(**kwargs)
         self.loss_function = loss_function
         self.loss_function_derivative = loss_function_derivative
@@ -36,6 +52,18 @@ class MatrixNetModel(BaseModel):
                 self.weight_array.append(weight_array)
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        x
+        batch_size
+        iteration_limit
+
+        Returns
+        -------
+
+        """
         if isinstance(x, np.ndarray):
 
             output = np.zeros((0, self.dimensions[-1]))
@@ -76,6 +104,20 @@ class MatrixNetModel(BaseModel):
         return layer
 
     def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
+        """
+
+        Parameters
+        ----------
+        x
+        y
+        learning_rate
+        batch_size
+        iteration_limit
+
+        Returns
+        -------
+
+        """
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"

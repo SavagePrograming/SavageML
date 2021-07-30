@@ -9,6 +9,21 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 
 class LayerlessDenseNetModel(BaseModel):
+    """
+
+    :param input_dimension:
+    :param hidden_dimension:
+    :param output_dimension:
+    :param network_connections:
+    :param weight_range:
+    :param activation_function:
+    :param activation_derivative:
+    :param loss_function:
+    :param loss_function_derivative:
+    :param weight_array:
+    :param kwargs:
+    """
+
     def __init__(self,
                  input_dimension: int,
                  hidden_dimension: int,
@@ -21,20 +36,22 @@ class LayerlessDenseNetModel(BaseModel):
                  loss_function_derivative=LossFunctionDerivatives.MSE_DERIVATIVE,
                  weight_array: List[np.array] = None,
                  **kwargs):
+        """Constructor Method"""
+
         super().__init__(**kwargs)
         self.network_connections = network_connections
-        
+
         self.output_dimension = output_dimension
         self.hidden_dimension = hidden_dimension
         self.bias_dimension = 1
         self.input_dimension = input_dimension
-        
+
         self.loss_function = loss_function
         self.loss_function_derivative = loss_function_derivative
-        
+
         self.activation_function = activation_function
         self.activation_derivative = activation_derivative
-        
+
         self.weight_range = weight_range
 
         self.weight_array: List[np.array] = weight_array
@@ -70,6 +87,13 @@ class LayerlessDenseNetModel(BaseModel):
         self.output_weights = self.weight_array.pop(-1)
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
+        """
+
+        :param x:
+        :param batch_size:
+        :param iteration_limit:
+        :return:
+        """
         if isinstance(x, np.ndarray):
 
             output = np.zeros((0, self.output_dimension))
@@ -106,10 +130,19 @@ class LayerlessDenseNetModel(BaseModel):
             new_node = self.activation_function(layer @ weights)
             layer = np.concatenate([layer, new_node], axis=1)
         output = self.activation_function(layer @ self.output_weights)
-        
+
         return output
 
     def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
+        """
+
+        :param x:
+        :param y:
+        :param learning_rate:
+        :param batch_size:
+        :param iteration_limit:
+        :return:
+        """
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
@@ -158,12 +191,12 @@ class LayerlessDenseNetModel(BaseModel):
         for weights in reversed(self.weight_array):
             result = layer[:, -1:]
             layer = layer[:, :-1]
-            
+
             result_derivative = current_derivative[:, -1:]
             current_derivative = current_derivative[:, :-1]
-            
+
             dl_da = result_derivative * self.activation_derivative(result)
-            
+
             node_update = dl_da @ weights.T
             weight_update = layer.T @ dl_da
 
