@@ -9,19 +9,65 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 
 class MatrixNetModel(BaseModel):
-    """
+    """ A Simple Multilayer Perceptron
+
+    The matrix net is a multilayer perceptron.
+    It takes dimensions for each layer.
+    It supports any number of layers, which can be any integer size greater than 0.
+    The equations for the network can be seen here:
+
+    :math:`X_{n+1} = \\sigma ([X_n \oplus 1 ] * W_n)`
+
+    +-------------------+------------------------------------+
+    | Symbol            | Meaning                            |
+    +===================+====================================+
+    | :math:`W_n`       | The weights for the layer          |
+    +-------------------+------------------------------------+
+    | :math:`\\sigma`    | The activation function            |
+    +-------------------+------------------------------------+
+    | :math:`X_n`       | The input for the layer            |
+    +-------------------+------------------------------------+
+    | :math:`X_0`       | The input to the network           |
+    +-------------------+------------------------------------+
+    | :math:`X_{final}` | The output of the network          |
+    +-------------------+------------------------------------+
+
 
     Parameters
     ----------
-    dimensions
-    weight_range
-    activation_function
-    activation_derivative
-    loss_function
-    loss_function_derivative
-    weight_array
-    kwargs
+    dimensions: List[int]
+        The dimensions of each layer in the network
+    weight_range: Tuple[float, float], optional
+        The minimum and maximum values for randomly generated weight values
+    weight_array: List[np.array], optional
+        The values of the weights, if no value is supplied, randomly generated weights will be created.
+    activation_function: Callable, optional
+        The activation function for the network. Defaults to sigmoid.
+        Remember to also set the activation derivative if you want the model to learn
+    activation_derivative: Callable, optional
+        The derivative of the activation function for the network.
+        This is used in backpropagation.
+        Defaults to derivative of a sigmoid.
+        Remember to also set the activation function if you want the model to learn
+    loss_function: Callable, optional
+        The loss function of network, used to compare predictions to expected values.
+        Defaults to Mean Squared Error.
+        Remember to also set the loss derivative, or the network will not learn properly.
+    loss_function_derivative: Callable, optional
+        The derivative of the loss function of network, used in backpropagation.
+        Defaults to the derivative of mean squared error.
     """
+
+    loss_function: Callable
+    loss_function_derivative: Callable
+
+    activation_function: Callable
+    activation_derivative: Callable
+
+    weight_range: Tuple[float, float]
+    weight_array: List[np.array]
+
+    dimensions: List[int]
 
     def __init__(self,
                  dimensions: List[int],
@@ -41,8 +87,8 @@ class MatrixNetModel(BaseModel):
         self.activation_derivative = activation_derivative
         self.weight_range = weight_range
 
-        self.weight_array: List[np.array] = weight_array
-        self.dimensions: List[int] = dimensions
+        self.weight_array = weight_array
+        self.dimensions = dimensions
 
         if self.weight_array is None:
             self.weight_array = []
@@ -51,18 +97,25 @@ class MatrixNetModel(BaseModel):
                         self.weight_range[1] - self.weight_range[0]) + self.weight_range[0]
                 self.weight_array.append(weight_array)
 
-    def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
-        """
+    def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
+        """Predicting values of some function
+
+        Uses forward propagation to produce predicted values.
 
         Parameters
         ----------
-        x
-        batch_size
-        iteration_limit
+        x - np.ndarray, Iterable
+            The input values to the model, or an iterable that produces (x, ...) tuples.
+        batch_size - int, optional
+            The size of the batch of input to be processed at the same time. Defaults to 1
+        iteration_limit - int, optional
+            The maximum number of iterations to process.
+            Defaults to None, which means there is no limit
 
         Returns
         -------
-
+        np.ndarray
+            The predicted values
         """
         if isinstance(x, np.ndarray):
 
@@ -70,9 +123,7 @@ class MatrixNetModel(BaseModel):
 
             if iteration_limit is not None and x.shape[0] > iteration_limit:
                 x = x[:iteration_limit]
-
             for batch in batch_np_array(x, batch_size):
-
                 prediction = self._predict_batch(batch)
 
                 output = np.concatenate([output, prediction], axis=0)
@@ -165,8 +216,8 @@ class MatrixNetModel(BaseModel):
         weights_update = []
 
         for result, layer, weights in zip(reversed(layer_values),
-                                 reversed(layer_values_bias),
-                                 reversed(self.weight_array)):
+                                          reversed(layer_values_bias),
+                                          reversed(self.weight_array)):
             dl_da = current_derivative * self.activation_derivative(result)
             node_update = dl_da @ weights.T
             weight_update = layer.T @ dl_da
