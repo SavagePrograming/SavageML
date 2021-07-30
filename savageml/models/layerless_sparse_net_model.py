@@ -9,6 +9,23 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 
 class LayerlessSparseNetModel(BaseModel):
+    """
+
+    :param input_dimension:
+    :param hidden_dimension:
+    :param output_dimension:
+    :param network_connections:
+    :param weight_range:
+    :param activation_function:
+    :param activation_derivative:
+    :param loss_function:
+    :param loss_function_derivative:
+    :param input_output_weights:
+    :param input_hidden_weights:
+    :param hidden_hidden_weights:
+    :param hidden_output_weights:
+    :param kwargs:
+    """
     def __init__(self,
                  input_dimension: int,
                  hidden_dimension: int,
@@ -24,6 +41,7 @@ class LayerlessSparseNetModel(BaseModel):
                  hidden_hidden_weights: np.array = None,
                  hidden_output_weights: np.array = None,
                  **kwargs):
+        """Constructor Method"""
         super().__init__(**kwargs)
         self.network_connections = network_connections
 
@@ -113,6 +131,13 @@ class LayerlessSparseNetModel(BaseModel):
             self.hidden_output_weights = weight_array
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
+        """
+
+        :param x:
+        :param batch_size:
+        :param iteration_limit:
+        :return:
+        """
         if isinstance(x, np.ndarray):
 
             output = np.zeros((0, self.output_dimension))
@@ -159,6 +184,15 @@ class LayerlessSparseNetModel(BaseModel):
         return output
 
     def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
+        """
+
+        :param x:
+        :param y:
+        :param learning_rate:
+        :param batch_size:
+        :param iteration_limit:
+        :return:
+        """
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
             assert y.shape[0] == x.shape[0], "x and y must have the same number of entries"
