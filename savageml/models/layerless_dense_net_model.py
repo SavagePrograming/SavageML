@@ -10,19 +10,89 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 class LayerlessDenseNetModel(BaseModel):
     """
+A Layerless neural network, with sparsely packed hidden wights
 
-    :param input_dimension:
-    :param hidden_dimension:
-    :param output_dimension:
-    :param network_connections:
-    :param weight_range:
-    :param activation_function:
-    :param activation_derivative:
-    :param loss_function:
-    :param loss_function_derivative:
-    :param weight_array:
-    :param kwargs:
+    The layerless networks are meant to be able to represent various networks with non standard shapes.
+    They can any network shape that is not cyclical.
+
+    The sparse model has 4 sets of weights:
+     * Input to Output
+     * Input to Hidden
+     * Hidden to Hidden, limited to above the diagonal, everything at or below the diagonal must be 0
+     * Hidden to Output
+
+    The equations for the layers are as follows:
+     * :math:`H = \\sigma ([I \oplus 1 ] * W_{io} + H * W_{hh})` This needs to be repeated until stable
+     * :math:`O = \\sigma ([I \oplus 1 ] * W_{io} + H * W_{ho})`
+
+    +-------------------+------------------------------------+
+    | Symbol            | Meaning                            |
+    +===================+====================================+
+    | :math:`W_{io}`    | Input to output weights            |
+    +-------------------+------------------------------------+
+    | :math:`W_{ih}`    | Input to hidden weights            |
+    +-------------------+------------------------------------+
+    | :math:`W_{hh}`    | Hidden to hidden weights           |
+    +-------------------+------------------------------------+
+    | :math:`W_{ho}`    | Hidden to output weights           |
+    +-------------------+------------------------------------+
+    | :math:`\\sigma`    | The activation function            |
+    +-------------------+------------------------------------+
+    | :math:`H`         | The hidden nodes for the network   |
+    +-------------------+------------------------------------+
+    | :math:`I`         | The input to the network           |
+    +-------------------+------------------------------------+
+    | :math:`O`         | The output of the network          |
+    +-------------------+------------------------------------+
+
+    Parameters
+    ----------
+    input_dimension
+        The number of input nodes in the network
+    hidden_dimension
+        The number of hidden nodes in the network
+    output_dimension
+        The number of output nodes in the network
+    network_connections
+        A dictionary showing the connections of the network
+    weight_range: Tuple[float, float], optional
+        The minimum and maximum values for randomly generated weight values
+    activation_function: Callable, optional
+        The activation function for the network. Defaults to sigmoid.
+        Remember to also set the activation derivative if you want the model to learn
+    activation_derivative: Callable, optional
+        The derivative of the activation function for the network.
+        This is used in backpropagation.
+        Defaults to derivative of a sigmoid.
+        Remember to also set the activation function if you want the model to learn
+    loss_function: Callable, optional
+        The loss function of network, used to compare predictions to expected values.
+        Defaults to Mean Squared Error.
+        Remember to also set the loss derivative, or the network will not learn properly.
+    loss_function_derivative: Callable, optional
+        The derivative of the loss function of network, used in backpropagation.
+        Defaults to the derivative of mean squared error.
+    weight_array: List[np.array], optional
+        The values of the weights, if no value is supplied, randomly generated weights will be created.
+
     """
+
+    network_connections: List[Tuple[int, int, float]]
+
+    output_dimension: int
+    hidden_dimension: int
+    bias_dimension: int = 1
+    input_dimension: int
+
+    loss_function: Callable
+    loss_function_derivative: Callable
+
+    activation_function: Callable
+    activation_derivative: Callable
+
+    weight_range: Tuple[float, float]
+
+    weight_array: List[np.ndarray]
 
     def __init__(self,
                  input_dimension: int,
@@ -55,7 +125,6 @@ class LayerlessDenseNetModel(BaseModel):
         self.weight_range = weight_range
 
         self.weight_array: List[np.array] = weight_array
-        self.output_weights = None
 
         if self.weight_array is None:
             self.weight_array = []
@@ -84,7 +153,6 @@ class LayerlessDenseNetModel(BaseModel):
                         connection_array[connection, i] = 1.0
                 weight_array = weight_array * connection_array
             self.weight_array.append(weight_array)
-        self.output_weights = self.weight_array.pop(-1)
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
         """Predicting values of some function
@@ -141,7 +209,8 @@ class LayerlessDenseNetModel(BaseModel):
         for weights in self.weight_array:
             new_node = self.activation_function(layer @ weights)
             layer = np.concatenate([layer, new_node], axis=1)
-        output = self.activation_function(layer @ self.output_weights)
+
+        output = new_node
 
         return output
 
@@ -202,22 +271,22 @@ class LayerlessDenseNetModel(BaseModel):
             new_node = self.activation_function(layer @ weights)
             layer = np.concatenate([layer, new_node], axis=1)
 
-        prediction = self.activation_function(layer @ self.output_weights)
+        prediction = new_node
 
-        current_derivative = self.loss_function_derivative(y, prediction, axis=1)
+        current_derivative = np.zeros_like(layer)
 
-        dl_da = current_derivative * self.activation_derivative(prediction)
-        output_weights_update = (layer.T @ dl_da) * learning_rate
-        current_derivative = dl_da @ self.output_weights.T
+        current_derivative[:, -1 * self.output_dimension:] = self.loss_function_derivative(y, prediction, axis=1)
 
         weights_update = []
 
         for weights in reversed(self.weight_array):
-            result = layer[:, -1:]
-            layer = layer[:, :-1]
+            size = weights.shape[1]
 
-            result_derivative = current_derivative[:, -1:]
-            current_derivative = current_derivative[:, :-1]
+            result = layer[:, -1 * size:]
+            layer = layer[:, :-1 * size]
+
+            result_derivative = current_derivative[:, -1*size:]
+            current_derivative = current_derivative[:, :-1*size]
 
             dl_da = result_derivative * self.activation_derivative(result)
 
@@ -232,6 +301,4 @@ class LayerlessDenseNetModel(BaseModel):
             new_weights.append(weights + weight_update)
         self.weight_array = new_weights
 
-        self.output_weights = self.output_weights + output_weights_update
-
-        return current_derivative[:, :-1]
+        return current_derivative[:, :-1*self.bias_dimension]
