@@ -53,8 +53,6 @@ class LayerlessSparseNetModel(BaseModel):
         The number of hidden nodes in the network
     output_dimension
         The number of output nodes in the network
-    network_connections
-        A dictionary showing the connections of the network
     weight_range: Tuple[float, float], optional
         The minimum and maximum values for randomly generated weight values
     activation_function: Callable, optional
@@ -81,46 +79,45 @@ class LayerlessSparseNetModel(BaseModel):
     hidden_output_weights - np.ndarray, optional
         The values of the hidden to output weights, if no value is supplied, randomly generated weights will be created.
     """
-    network_connections: dict
 
-    output_dimension:int
-    hidden_dimension:int
-    bias_dimension:int = 1
-    input_dimension:int
-
-    loss_function:Callable
-    loss_function_derivative:Callable
-
-    activation_function:Callable
-    activation_derivative:Callable
-
-    weight_range:Tuple[float, float]
-
+    output_dimension: int
+    hidden_dimension: int
+    bias_dimension: int = 1
+    input_dimension: int
+    loss_function: Callable
+    loss_function_derivative: Callable
+    activation_function: Callable
+    activation_derivative: Callable
+    weight_range: Tuple[float, float]
+    input_output_connections: np.ndarray
     input_output_weights: np.ndarray
+    input_hidden_connections: np.ndarray
     input_hidden_weights: np.ndarray
+    hidden_hidden_connections: np.ndarray
     hidden_hidden_weights: np.ndarray
+    hidden_output_connections: np.ndarray
     hidden_output_weights: np.ndarray
-
-    hidden_hidden_weights_clear: np.ndarray
 
     def __init__(self,
                  input_dimension: int,
                  hidden_dimension: int,
                  output_dimension: int,
-                 network_connections: Dict[int, List[int]] = None,
                  weight_range: Tuple[float, float] = (-2.0, 2.0),
                  activation_function: Callable = ActivationFunctions.SIGMOID,
                  activation_derivative: Callable = ActivationFunctionsDerivatives.SIGMOID_DERIVATIVE,
                  loss_function=LossFunctions.MSE,
                  loss_function_derivative=LossFunctionDerivatives.MSE_DERIVATIVE,
+                 input_output_connections: np.array = None,
                  input_output_weights: np.array = None,
+                 input_hidden_connections: np.array = None,
                  input_hidden_weights: np.array = None,
+                 hidden_hidden_connections: np.array = None,
                  hidden_hidden_weights: np.array = None,
+                 hidden_output_connections: np.array = None,
                  hidden_output_weights: np.array = None,
                  **kwargs):
         """Constructor Method"""
         super().__init__(**kwargs)
-        self.network_connections = network_connections
 
         self.output_dimension = output_dimension
         self.hidden_dimension = hidden_dimension
@@ -135,77 +132,66 @@ class LayerlessSparseNetModel(BaseModel):
 
         self.weight_range = weight_range
 
-        # self.weight_array: List[np.array] = weight_array
+        self.input_output_connections: np.ndarray = input_output_connections
         self.input_output_weights: np.ndarray = input_output_weights
+
+        self.input_hidden_connections: np.ndarray = input_hidden_connections
         self.input_hidden_weights: np.ndarray = input_hidden_weights
+
+        self.hidden_hidden_connections: np.ndarray = hidden_hidden_connections
         self.hidden_hidden_weights: np.ndarray = hidden_hidden_weights
+
+        self.hidden_output_connections: np.ndarray = hidden_output_connections
         self.hidden_output_weights: np.ndarray = hidden_output_weights
 
-        self.hidden_hidden_weights_clear = np.zeros((self.hidden_dimension, self.hidden_dimension))
-        for i in range(self.hidden_dimension):
-            for j in range(i + 1, self.hidden_dimension):
-                self.hidden_hidden_weights_clear[i, j] = 1.0
-
+        # Working on input output
         if self.input_output_weights is None:
-            # Make output weights
             shape = (self.bias_dimension + self.input_dimension, self.output_dimension)
             weight_array = np.random.random(shape) * (self.weight_range[1] -
                                                       self.weight_range[0]) + self.weight_range[0]
-            if self.network_connections is not None:
-                connection_array = np.zeros(shape)
-                for i in range(self.input_dimension + self.bias_dimension):
-                    for connection in self.network_connections[i]:
-                        if connection >= self.bias_dimension + self.input_dimension + self.hidden_dimension:
-                            index = i - (self.bias_dimension + self.input_dimension + self.hidden_dimension)
-                            connection_array[connection, index] = 1.0
-                weight_array = weight_array * connection_array
             self.input_output_weights = weight_array
+        if self.input_output_connections is None:
+            self.input_output_connections = np.ones_like(self.input_output_weights)
+        self.input_output_weights = self.input_output_weights * self.input_output_connections
 
+        # Working on input hidden
         if self.input_hidden_weights is None:
-            # Make output weights
             shape = (self.bias_dimension + self.input_dimension, self.hidden_dimension)
             weight_array = np.random.random(shape) * (self.weight_range[1] -
                                                       self.weight_range[0]) + self.weight_range[0]
-            if self.network_connections is not None:
-                connection_array = np.zeros(shape)
-                for i in range(self.input_dimension + self.bias_dimension):
-                    for connection in self.network_connections[i]:
-                        if self.bias_dimension + self.input_dimension <= connection < self.bias_dimension + self.input_dimension + self.hidden_dimension:
-                            index = i - (self.bias_dimension + self.input_dimension)
-                            connection_array[connection, index] = 1.0
-                weight_array = weight_array * connection_array
             self.input_hidden_weights = weight_array
+        if self.input_hidden_connections is None:
+            self.input_hidden_connections = np.ones_like(self.input_hidden_weights)
+        self.input_hidden_weights = self.input_hidden_weights * self.input_hidden_connections
 
+        # Working on hidden hidden
         if self.hidden_hidden_weights is None:
-            # Make output weights
             shape = (self.hidden_dimension, self.hidden_dimension)
             weight_array = np.random.random(shape) * (self.weight_range[1] -
                                                       self.weight_range[0]) + self.weight_range[0]
-            if self.network_connections is not None:
-                connection_array = np.zeros(shape)
-                for i in range(self.hidden_dimension):
-                    for connection in self.network_connections[self.bias_dimension + self.input_dimension + i]:
-                        if self.bias_dimension + self.input_dimension <= connection < self.bias_dimension + self.input_dimension + self.hidden_dimension:
-                            index = i - (self.bias_dimension + self.input_dimension)
-                            connection_array[connection, index] = 1.0
-                weight_array = weight_array * connection_array
-            self.hidden_hidden_weights = self.hidden_hidden_weights_clear * weight_array
+            self.hidden_hidden_weights = weight_array
+        if self.hidden_hidden_connections is None:
+            X, Y = np.meshgrid(range(self.hidden_dimension), range(self.hidden_dimension))
+            self.hidden_hidden_connections = (X > Y) * 1.0
+        self.hidden_hidden_weights = self.hidden_hidden_weights * self.hidden_hidden_connections
 
+        # Working on hidden output
         if self.hidden_output_weights is None:
-            # Make output weights
             shape = (self.hidden_dimension, self.output_dimension)
             weight_array = np.random.random(shape) * (self.weight_range[1] -
                                                       self.weight_range[0]) + self.weight_range[0]
-            if self.network_connections is not None:
-                connection_array = np.zeros(shape)
-                for i in range(self.hidden_dimension):
-                    for connection in self.network_connections[
-                        self.bias_dimension + self.input_dimension + self.hidden_dimension + i]:
-                        if self.bias_dimension + self.input_dimension + self.hidden_dimension <= connection:
-                            index = i - (self.bias_dimension + self.input_dimension + self.hidden_dimension)
-                            connection_array[connection, index] = 1.0
-                weight_array = weight_array * connection_array
             self.hidden_output_weights = weight_array
+        if self.hidden_output_connections is None:
+            self.hidden_output_connections = np.ones_like(self.hidden_output_weights)
+        self.hidden_output_weights = self.hidden_output_weights * self.hidden_output_connections
+
+    @staticmethod
+    def from_connections_list():
+        pass
+
+    @staticmethod
+    def get_connections_list():
+        pass
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
         """Predicting values of some function
@@ -355,23 +341,26 @@ class LayerlessSparseNetModel(BaseModel):
         for _ in range(self.hidden_dimension):
             hidden_derivatives_: np.ndarray = hidden
 
-            hidden_derivatives: np.ndarray = (output_derivatives @ self.hidden_output_weights.T +
-                                              hidden_derivatives @ self.hidden_hidden_weights.T) * \
-                                             self.activation_derivative(hidden)
+            hidden_derivatives: np.ndarray = ((output_derivatives @ self.hidden_output_weights.T +
+                                              hidden_derivatives @ self.hidden_hidden_weights.T) *
+                                              self.activation_derivative(hidden))
 
             if (hidden_derivatives_ == hidden_derivatives).all():
                 break
 
         input_hidden_weights_update = (input.T @ hidden_derivatives) * learning_rate
-        hidden_hidden_weights_update = (self.hidden_hidden_weights_clear * (
-                hidden.T @ hidden_derivatives)) * learning_rate
+        hidden_hidden_weights_update = (hidden.T @ hidden_derivatives) * learning_rate
 
         input_derivatives = output_derivatives @ self.hidden_output_weights.T + \
                             hidden_derivatives @ self.hidden_hidden_weights.T
 
-        self.input_hidden_weights = self.input_hidden_weights + input_hidden_weights_update
-        self.input_output_weights = self.input_output_weights + input_output_weights_update
-        self.hidden_hidden_weights = self.hidden_hidden_weights + hidden_hidden_weights_update
-        self.hidden_output_weights = self.hidden_output_weights + hidden_output_weights_update
+        self.input_hidden_weights = self.input_hidden_connections * (self.input_hidden_weights +
+                                                                     input_hidden_weights_update)
+        self.input_output_weights = self.input_output_connections * (self.input_output_weights +
+                                                                     input_output_weights_update)
+        self.hidden_hidden_weights = self.hidden_hidden_connections * (self.hidden_hidden_weights +
+                                                                       hidden_hidden_weights_update)
+        self.hidden_output_weights = self.hidden_output_connections * (self.hidden_output_weights +
+                                                                       hidden_output_weights_update)
 
         return input_derivatives[:, :-1]
