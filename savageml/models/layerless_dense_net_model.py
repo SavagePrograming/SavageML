@@ -86,13 +86,25 @@ class LayerlessDenseNetModel(BaseModel):
             self.weight_array.append(weight_array)
         self.output_weights = self.weight_array.pop(-1)
 
-    def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
-        """
+    def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
+        """Predicting values of some function
 
-        :param x:
-        :param batch_size:
-        :param iteration_limit:
-        :return:
+        Uses forward propagation to produce predicted values.
+
+        Parameters
+        ----------
+        x - Union[np.ndarray, Iterable]
+            The input values to the model, or an iterable that produces (x, ...) tuples.
+        batch_size - int, optional
+            The size of the batch of input to be processed at the same time. Defaults to 1
+        iteration_limit - int, optional
+            The maximum number of iterations to process.
+            Defaults to None, which means there is no limit
+
+        Returns
+        -------
+        np.ndarray
+            The predicted values
         """
         if isinstance(x, np.ndarray):
 
@@ -133,15 +145,27 @@ class LayerlessDenseNetModel(BaseModel):
 
         return output
 
-    def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
-        """
+    def fit(self, x: Union[np.ndarray, Iterable], y: np.ndarray = None, learning_rate: float = 0.01,
+            batch_size: int = 1, iteration_limit: int = None):
+        """ The function to fit the model to some data
 
-        :param x:
-        :param y:
-        :param learning_rate:
-        :param batch_size:
-        :param iteration_limit:
-        :return:
+        Uses forward propagation to estimate y values.
+        Compares those values to the true values using the loss function,
+        producing a gradient with the derivative of that function.
+        Backpropagation is then used to update the networks weights.
+
+        Parameters
+        ----------
+        x - Union[np.ndarray, Iterable]
+            The input values to the model, or an iterable that produces (x, y, ...) tuples.
+        y - np.ndarray, optional
+            The output values to the model, not expected to be present if x is an Iterable.
+        learning_rate - float, optional
+            The rate at which the weights are updated, defaults to 0.01
+        batch_size - int, optional
+            The number of samples to be processed at once, defaults to 1
+        iteration_limit - int, optional
+            The maximum number of samples to be processed, defaults to no limit
         """
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
