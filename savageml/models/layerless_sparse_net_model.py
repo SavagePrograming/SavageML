@@ -9,23 +9,100 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 
 class LayerlessSparseNetModel(BaseModel):
-    """
+    """A Layerless neural network, with sparsely packed hidden wights
 
-    :param input_dimension:
-    :param hidden_dimension:
-    :param output_dimension:
-    :param network_connections:
-    :param weight_range:
-    :param activation_function:
-    :param activation_derivative:
-    :param loss_function:
-    :param loss_function_derivative:
-    :param input_output_weights:
-    :param input_hidden_weights:
-    :param hidden_hidden_weights:
-    :param hidden_output_weights:
-    :param kwargs:
+    The layerless networks are meant to be able to represent various networks with non standard shapes.
+    They can any network shape that is not cyclical.
+
+    The sparse model has 4 sets of weights:
+     * Input to Output
+     * Input to Hidden
+     * Hidden to Hidden, limited to above the diagonal, everything at or below the diagonal must be 0
+     * Hidden to Output
+
+    The equations for the layers are as follows:
+     * :math:`H = \\sigma ([I \oplus 1 ] * W_{io} + H * W_{hh})` This needs to be repeated until stable
+     * :math:`O = \\sigma ([I \oplus 1 ] * W_{io} + H * W_{ho})`
+
+    +-------------------+------------------------------------+
+    | Symbol            | Meaning                            |
+    +===================+====================================+
+    | :math:`W_{io}`    | Input to output weights            |
+    +-------------------+------------------------------------+
+    | :math:`W_{ih}`    | Input to hidden weights            |
+    +-------------------+------------------------------------+
+    | :math:`W_{hh}`    | Hidden to hidden weights           |
+    +-------------------+------------------------------------+
+    | :math:`W_{ho}`    | Hidden to output weights           |
+    +-------------------+------------------------------------+
+    | :math:`\\sigma`    | The activation function            |
+    +-------------------+------------------------------------+
+    | :math:`H`         | The hidden nodes for the network   |
+    +-------------------+------------------------------------+
+    | :math:`I`         | The input to the network           |
+    +-------------------+------------------------------------+
+    | :math:`O`         | The output of the network          |
+    +-------------------+------------------------------------+
+
+
+    Parameters
+    ----------
+    input_dimension
+        The number of input nodes in the network
+    hidden_dimension
+        The number of hidden nodes in the network
+    output_dimension
+        The number of output nodes in the network
+    network_connections
+        A dictionary showing the connections of the network
+    weight_range: Tuple[float, float], optional
+        The minimum and maximum values for randomly generated weight values
+    activation_function: Callable, optional
+        The activation function for the network. Defaults to sigmoid.
+        Remember to also set the activation derivative if you want the model to learn
+    activation_derivative: Callable, optional
+        The derivative of the activation function for the network.
+        This is used in backpropagation.
+        Defaults to derivative of a sigmoid.
+        Remember to also set the activation function if you want the model to learn
+    loss_function: Callable, optional
+        The loss function of network, used to compare predictions to expected values.
+        Defaults to Mean Squared Error.
+        Remember to also set the loss derivative, or the network will not learn properly.
+    loss_function_derivative: Callable, optional
+        The derivative of the loss function of network, used in backpropagation.
+        Defaults to the derivative of mean squared error.
+    input_output_weights - np.ndarray, optional
+        The values of the input to output weights, if no value is supplied, randomly generated weights will be created.
+    input_hidden_weights - np.ndarray, optional
+        The values of the input to hidden weights, if no value is supplied, randomly generated weights will be created.
+    hidden_hidden_weights - np.ndarray, optional
+        The values of the hidden to hidden weights, if no value is supplied, randomly generated weights will be created.
+    hidden_output_weights - np.ndarray, optional
+        The values of the hidden to output weights, if no value is supplied, randomly generated weights will be created.
     """
+    network_connections: dict
+
+    output_dimension:int
+    hidden_dimension:int
+    bias_dimension:int = 1
+    input_dimension:int
+
+    loss_function:Callable
+    loss_function_derivative:Callable
+
+    activation_function:Callable
+    activation_derivative:Callable
+
+    weight_range:Tuple[float, float]
+
+    input_output_weights: np.ndarray
+    input_hidden_weights: np.ndarray
+    hidden_hidden_weights: np.ndarray
+    hidden_output_weights: np.ndarray
+
+    hidden_hidden_weights_clear: np.ndarray
+
     def __init__(self,
                  input_dimension: int,
                  hidden_dimension: int,
@@ -66,7 +143,7 @@ class LayerlessSparseNetModel(BaseModel):
 
         self.hidden_hidden_weights_clear = np.zeros((self.hidden_dimension, self.hidden_dimension))
         for i in range(self.hidden_dimension):
-            for j in range(i+1, self.hidden_dimension):
+            for j in range(i + 1, self.hidden_dimension):
                 self.hidden_hidden_weights_clear[i, j] = 1.0
 
         if self.input_output_weights is None:
@@ -130,13 +207,25 @@ class LayerlessSparseNetModel(BaseModel):
                 weight_array = weight_array * connection_array
             self.hidden_output_weights = weight_array
 
-    def predict(self, x: Union[np.ndarray, Iterable], batch_size=1, iteration_limit=None) -> np.ndarray:
-        """
+    def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
+        """Predicting values of some function
 
-        :param x:
-        :param batch_size:
-        :param iteration_limit:
-        :return:
+        Uses forward propagation to produce predicted values.
+
+        Parameters
+        ----------
+        x - Union[np.ndarray, Iterable]
+            The input values to the model, or an iterable that produces (x, ...) tuples.
+        batch_size - int, optional
+            The size of the batch of input to be processed at the same time. Defaults to 1
+        iteration_limit - int, optional
+            The maximum number of iterations to process.
+            Defaults to None, which means there is no limit
+
+        Returns
+        -------
+        np.ndarray
+            The predicted values
         """
         if isinstance(x, np.ndarray):
 
@@ -174,7 +263,8 @@ class LayerlessSparseNetModel(BaseModel):
         for _ in range(self.hidden_dimension):
             hidden_: np.ndarray = hidden
 
-            hidden: np.ndarray = self.activation_function(input @ self.input_hidden_weights + hidden @ self.hidden_hidden_weights)
+            hidden: np.ndarray = self.activation_function(
+                input @ self.input_hidden_weights + hidden @ self.hidden_hidden_weights)
 
             if (hidden_ == hidden).all():
                 break
@@ -183,15 +273,28 @@ class LayerlessSparseNetModel(BaseModel):
 
         return output
 
-    def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
-        """
+    def fit(self, x: Union[np.ndarray, Iterable], y: np.ndarray = None, learning_rate: float = 0.01,
+            batch_size: int = 1, iteration_limit: int = None):
 
-        :param x:
-        :param y:
-        :param learning_rate:
-        :param batch_size:
-        :param iteration_limit:
-        :return:
+        """ The function to fit the model to some data
+
+        Uses forward propagation to estimate y values.
+        Compares those values to the true values using the loss function,
+        producing a gradient with the derivative of that function.
+        Backpropagation is then used to update the networks weights.
+
+        Parameters
+        ----------
+        x - Union[np.ndarray, Iterable]
+            The input values to the model, or an iterable that produces (x, y, ...) tuples.
+        y - np.ndarray, optional
+            The output values to the model, not expected to be present if x is an Iterable.
+        learning_rate - float, optional
+            The rate at which the weights are updated, defaults to 0.01
+        batch_size - int, optional
+            The number of samples to be processed at once, defaults to 1
+        iteration_limit - int, optional
+            The maximum number of samples to be processed, defaults to no limit
         """
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
@@ -228,7 +331,8 @@ class LayerlessSparseNetModel(BaseModel):
         for _ in range(self.hidden_dimension):
             hidden_: np.ndarray = hidden
 
-            hidden: np.ndarray = self.activation_function(input @ self.input_hidden_weights + hidden @ self.hidden_hidden_weights)
+            hidden: np.ndarray = self.activation_function(
+                input @ self.input_hidden_weights + hidden @ self.hidden_hidden_weights)
 
             if (hidden_ == hidden).all():
                 break
@@ -252,16 +356,17 @@ class LayerlessSparseNetModel(BaseModel):
             hidden_derivatives_: np.ndarray = hidden
 
             hidden_derivatives: np.ndarray = (output_derivatives @ self.hidden_output_weights.T +
-                                             hidden_derivatives @ self.hidden_hidden_weights.T) *\
+                                              hidden_derivatives @ self.hidden_hidden_weights.T) * \
                                              self.activation_derivative(hidden)
 
             if (hidden_derivatives_ == hidden_derivatives).all():
                 break
 
         input_hidden_weights_update = (input.T @ hidden_derivatives) * learning_rate
-        hidden_hidden_weights_update = (self.hidden_hidden_weights_clear * (hidden.T @ hidden_derivatives)) * learning_rate
+        hidden_hidden_weights_update = (self.hidden_hidden_weights_clear * (
+                hidden.T @ hidden_derivatives)) * learning_rate
 
-        input_derivatives = output_derivatives @ self.hidden_output_weights.T +\
+        input_derivatives = output_derivatives @ self.hidden_output_weights.T + \
                             hidden_derivatives @ self.hidden_hidden_weights.T
 
         self.input_hidden_weights = self.input_hidden_weights + input_hidden_weights_update

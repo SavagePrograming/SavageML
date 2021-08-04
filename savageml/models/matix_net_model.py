@@ -104,7 +104,7 @@ class MatrixNetModel(BaseModel):
 
         Parameters
         ----------
-        x - np.ndarray, Iterable
+        x - Union[np.ndarray, Iterable]
             The input values to the model, or an iterable that produces (x, ...) tuples.
         batch_size - int, optional
             The size of the batch of input to be processed at the same time. Defaults to 1
@@ -154,20 +154,26 @@ class MatrixNetModel(BaseModel):
 
         return layer
 
-    def fit(self, x: Iterable, y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
-        """
+    def fit(self, x: Union[np.ndarray, Iterable], y: np.ndarray = None, learning_rate=0.01, batch_size=1, iteration_limit=None):
+        """ The function to fit the model to some data
+
+        Uses forward propagation to estimate y values.
+        Compares those values to the true values using the loss function,
+        producing a gradient with the derivative of that function.
+        Backpropagation is then used to update the networks weights.
 
         Parameters
         ----------
-        x
-        y
-        learning_rate
-        batch_size
-        iteration_limit
-
-        Returns
-        -------
-
+        x - Union[np.ndarray, Iterable]
+            The input values to the model, or an iterable that produces (x, y, ...) tuples.
+        y - np.ndarray, optional
+            The output values to the model, not expected to be present if x is an Iterable.
+        learning_rate - float, optional
+            The rate at which the weights are updated, defaults to 0.01
+        batch_size - int, optional
+            The number of samples to be processed at once, defaults to 1
+        iteration_limit - int, optional
+            The maximum number of samples to be processed, defaults to no limit
         """
         if y is not None:
             assert isinstance(x, np.ndarray), "If y is present, x must be a np array"
