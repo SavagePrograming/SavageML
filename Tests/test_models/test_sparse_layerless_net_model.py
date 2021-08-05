@@ -13,7 +13,7 @@ RNG = numpy.random.default_rng(0)
 TEST_DATA = RNG.choice([0.0, 1.0], (DATA_SIZE, DATA_WIDTH))
 TEST_XOR = np.reshape((TEST_DATA[:, 0] != TEST_DATA[:, 1]), (DATA_SIZE, 1))
 LEARNING_RATE = 0.01
-
+EXPECTED_CONNECTION_COUNT = 88
 
 def test_predict_outputs_correct_size_ndarray():
     model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
@@ -37,6 +37,18 @@ def test_fit_x_y():
                                     output_dimension=OUT_WIDTH)
     model.fit(TEST_DATA, TEST_XOR, LEARNING_RATE)
     assert True
+
+
+def test_get_connections_list():
+
+    model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
+                                    hidden_dimension=HIDDEN_WIDTH,
+                                    output_dimension=OUT_WIDTH)
+    print()
+    for tpl in model.get_connections_list():
+        print(tpl)
+
+    assert len(model.get_connections_list()) == EXPECTED_CONNECTION_COUNT
 
 
 def test_fit_simulation():
