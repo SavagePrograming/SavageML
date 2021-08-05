@@ -186,12 +186,128 @@ class LayerlessSparseNetModel(BaseModel):
         self.hidden_output_weights = self.hidden_output_weights * self.hidden_output_connections
 
     @staticmethod
-    def from_connections_list():
-        pass
+    def from_connections_list(input_dimension: int, hidden_dimension: int, output_dimension: int,
+                              connection_list: List[Tuple[int, int, float]],
+                              **kwargs):
+        """
+        Creates a new :class:`LayerlessSparseNetModel` from a list of connection tuples.
+        These tuples are in the shape, (start node, end node, weight)
+        Nodes are in the order input nodes, bias nodes, hidden nodes, output nodes.
 
-    @staticmethod
-    def get_connections_list():
-        pass
+
+        Parameters
+        ----------
+        input_dimension - int
+            The number of input nodes in the network
+        hidden_dimension - int
+            The number of hidden nodes in the network
+        output_dimension - int
+            The number of output nodes in the network
+        connection_list - List[Tuple[int, int, float]]
+            A list of connection tuples, which can be used to build another layerless network
+        kwargs
+            Accepts all arguments that the LayerlessSparseNetModel
+
+        Returns
+        -------
+        LayerlessSparseNetModel
+            A new LayerlessSparseNetModel with the shape described in the connection list
+        """
+        bias_dimension = LayerlessSparseNetModel.bias_dimension
+        kwargs["input_dimension"] = input_dimension
+        kwargs["hidden_dimension"] = hidden_dimension
+        kwargs["output_dimension"] = output_dimension
+
+        hidden_start = input_dimension + bias_dimension
+        output_start = input_dimension + bias_dimension + hidden_dimension
+
+        input_output_weights = np.zeros((bias_dimension + input_dimension, output_dimension))
+        input_output_connections = np.zeros_like(input_output_weights)
+
+        input_hidden_weights = np.zeros((bias_dimension + input_dimension, hidden_dimension))
+        input_hidden_connections = np.zeros_like(input_hidden_weights)
+
+        hidden_hidden_weights = np.zeros((hidden_dimension, hidden_dimension))
+        hidden_hidden_connections = np.zeros_like(hidden_hidden_weights)
+
+        hidden_output_weights = np.zeros((hidden_dimension, output_dimension))
+        hidden_output_connections = np.zeros_like(hidden_output_weights)
+
+        for start_node, end_node, weight in connection_list:
+            if start_node < hidden_start:
+                if (end_node < output_start and
+                        (input_hidden_connections[start_node, end_node - hidden_start] == 1.0).all()):
+                    input_hidden_weights[start_node, end_node - hidden_start] = weight
+                elif (end_node >= output_start and
+                      (input_output_connections[start_node, end_node - output_start] == 1.0).all()):
+                    input_output_weights[start_node, end_node - output_start] = weight
+            elif start_node < output_start:
+                if (end_node < output_start and
+                        (hidden_hidden_connections[
+                             start_node - hidden_start, end_node - hidden_start] == 1.0).all()):
+                    hidden_hidden_weights[start_node - hidden_start, end_node - hidden_start] = weight
+                elif (end_node >= output_start and
+                      (hidden_output_connections[
+                           start_node - hidden_start, end_node - output_start] == 1.0).all()):
+                    hidden_output_weights[start_node - hidden_start, end_node - output_start] = weight
+
+        kwargs["input_output_weights"] = input_output_weights
+        kwargs["input_output_connections"] = input_output_connections
+
+        kwargs["input_hidden_weights"] = input_hidden_weights
+        kwargs["input_hidden_connections"] = input_hidden_connections
+
+        kwargs["hidden_hidden_weights"] = hidden_hidden_weights
+        kwargs["hidden_hidden_connections"] = hidden_hidden_connections
+
+        kwargs["hidden_output_weights"] = hidden_output_weights
+        kwargs["hidden_output_connections"] = hidden_output_connections
+
+        return LayerlessSparseNetModel(**kwargs)
+
+    def get_connections_list(self) -> List[Tuple[int, int, float]]:
+        """
+        Breaks a layerless network down into a list of connection tuples.
+        These tuples are in the shape, (start node, end node, weight)
+        Nodes are in the order input nodes, bias nodes, hidden nodes, output nodes.
+
+        Returns
+        -------
+        List[Tuple[int, int, float]]
+            A list of connection tuples, which can be used to build another layerless network
+        """
+        connection_list = []
+
+        total_nodes = self.input_dimension + self.bias_dimension + self.hidden_dimension + self.output_dimension
+        hidden_start = self.input_dimension + self.bias_dimension
+        output_start = self.input_dimension + self.bias_dimension + self.hidden_dimension
+
+        for start_node in range(output_start):
+            for end_node in range(max(start_node + 1, hidden_start), total_nodes):
+                if start_node < hidden_start:
+                    if (end_node < output_start and
+                            (self.input_hidden_connections[start_node, end_node - hidden_start] == 1.0).all()):
+                        connection_list.append((start_node, end_node,
+                                                self.input_hidden_weights[start_node, end_node - hidden_start]))
+                    elif (end_node >= output_start and
+                          (self.input_output_connections[start_node, end_node - output_start] == 1.0).all()):
+                        connection_list.append((start_node, end_node,
+                                                self.input_output_weights[start_node, end_node - output_start]))
+                elif start_node < output_start:
+                    if (end_node < output_start and
+                            (self.hidden_hidden_connections[
+                                 start_node - hidden_start, end_node - hidden_start] == 1.0).all()):
+                        connection_list.append((start_node, end_node,
+                                                self.hidden_hidden_weights[start_node - hidden_start,
+                                                                           end_node - hidden_start]))
+                    elif (end_node >= output_start and
+                          (self.hidden_output_connections[
+                               start_node - hidden_start, end_node - output_start] == 1.0).all()):
+                        connection_list.append((start_node, end_node,
+                                                self.hidden_output_weights[start_node - hidden_start,
+                                                                           end_node - output_start]))
+
+        return connection_list
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
         """Predicting values of some function
@@ -342,7 +458,7 @@ class LayerlessSparseNetModel(BaseModel):
             hidden_derivatives_: np.ndarray = hidden
 
             hidden_derivatives: np.ndarray = ((output_derivatives @ self.hidden_output_weights.T +
-                                              hidden_derivatives @ self.hidden_hidden_weights.T) *
+                                               hidden_derivatives @ self.hidden_hidden_weights.T) *
                                               self.activation_derivative(hidden))
 
             if (hidden_derivatives_ == hidden_derivatives).all():
