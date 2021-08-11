@@ -1,6 +1,6 @@
 import pytest
 
-from savageml.Models import BaseModel
+from savageml.models import BaseModel
 
 EXPECTED_PARAMS = {"test_param": False}
 
