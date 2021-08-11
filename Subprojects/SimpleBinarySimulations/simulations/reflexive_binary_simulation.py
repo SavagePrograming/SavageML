@@ -7,8 +7,8 @@ from savageml.simulations import BaseSimulation
 
 
 class ReflexiveBinarySimulation(BaseSimulation):
-    def __init__(self, shape=(1,), max_steps=10):
-        super().__init__()
+    def __init__(self, shape=(1,), max_steps=10, **kwargs):
+        super().__init__(**kwargs)
         self.shape = shape
         self.max_steps = max_steps
         self.step_count = 0
@@ -19,10 +19,10 @@ class ReflexiveBinarySimulation(BaseSimulation):
         else:
             self.step_count += 1
             sample = self.random.choice([0.0, 1.], self.shape)
-            return (sample, sample.copy(), np.array(0.0))
+            return sample, sample.copy(), np.array(0.0)
 
     def __iter__(self):
-        pass
+        return ReflexiveBinarySimulation(self)
 
     def reset(self):
         pass
