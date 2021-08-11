@@ -1,9 +1,12 @@
-import random
+import numpy.random
 import time
+
+from typing import Tuple, List, Union
 
 from ..models import BaseModel
 from .simulation_state import SimulationState
 
+test = numpy.random.default_rng(10)
 
 def get_default_seed():
     return int(time.time() * 1E6)
@@ -14,8 +17,7 @@ class BaseSimulation:
         self.seed: int = seed
         self.model: BaseModel = model
         self.state: SimulationState = SimulationState.INITIALIZED
-        self.random: random.Random = random.Random()
-        self.random.seed(self.seed)
+        self.random: numpy.random.Generator = numpy.random.default_rng(self.seed)
 
     def __iter__(self):
         return self.__class__(self.model, self.seed)
@@ -43,7 +45,7 @@ class BaseSimulation:
     def get_state(self):
         return self.state
 
-    def step(self, visualize=False) -> tuple:
+    def step(self, visualize=False) -> Tuple:
         self.state = SimulationState.COMPLETE
         return ()
 
