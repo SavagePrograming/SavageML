@@ -53,8 +53,6 @@ A Layerless neural network, with sparsely packed hidden wights
         The number of hidden nodes in the network
     output_dimension
         The number of output nodes in the network
-    network_connections
-        A dictionary showing the connections of the network
     weight_range: Tuple[float, float], optional
         The minimum and maximum values for randomly generated weight values
     activation_function: Callable, optional
@@ -77,8 +75,6 @@ A Layerless neural network, with sparsely packed hidden wights
 
     """
 
-    network_connections: List[Tuple[int, int, float]]
-
     output_dimension: int
     hidden_dimension: int
     bias_dimension: int = 1
@@ -98,18 +94,17 @@ A Layerless neural network, with sparsely packed hidden wights
                  input_dimension: int,
                  hidden_dimension: int,
                  output_dimension: int,
-                 network_connections: Dict[int, List[int]] = None,
                  weight_range: Tuple[float, float] = (-2.0, 2.0),
                  activation_function: Callable = ActivationFunctions.SIGMOID,
                  activation_derivative: Callable = ActivationFunctionsDerivatives.SIGMOID_DERIVATIVE,
                  loss_function=LossFunctions.MSE,
                  loss_function_derivative=LossFunctionDerivatives.MSE_DERIVATIVE,
                  weight_array: List[np.array] = None,
+                 connections_array: List[np.array] = None,
                  **kwargs):
         """Constructor Method"""
 
         super().__init__(**kwargs)
-        self.network_connections = network_connections
 
         self.output_dimension = output_dimension
         self.hidden_dimension = hidden_dimension
@@ -125,6 +120,21 @@ A Layerless neural network, with sparsely packed hidden wights
         self.weight_range = weight_range
 
         self.weight_array: List[np.array] = weight_array
+        self.connections_array: List[np.array] = connections_array
+
+        if self.connections_array is None:
+            self.connections_array = []
+            # Make hidden Weights
+            for i in range(self.hidden_dimension):
+                shape = (self.bias_dimension + self.input_dimension + i, 1)
+                connection_array = np.ones(shape)
+                self.connections_array.append(connection_array)
+
+            # Make output weights
+            shape = (self.bias_dimension + self.input_dimension + self.hidden_dimension, self.output_dimension)
+            connection_array = np.ones(shape)
+
+            self.connections_array.append(connection_array)
 
         if self.weight_array is None:
             self.weight_array = []
@@ -133,26 +143,81 @@ A Layerless neural network, with sparsely packed hidden wights
                 shape = (self.bias_dimension + self.input_dimension + i, 1)
                 weight_array = np.random.random(shape) * (self.weight_range[1] - self.weight_range[0]) + \
                                self.weight_range[0]
-                if self.network_connections is not None:
-                    connection_array = np.zeros(shape)
-                    for connection in self.network_connections[self.bias_dimension + self.input_dimension + i]:
-                        connection_array[connection, 0] = 1.0
-                    weight_array = weight_array * connection_array
-                self.weight_array.append(weight_array)
+                self.weight_array.append(weight_array * self.connections_array[i])
 
             # Make output weights
             shape = (self.bias_dimension + self.input_dimension + self.hidden_dimension, self.output_dimension)
             weight_array = np.random.random(shape) * (self.weight_range[1] -
                                                       self.weight_range[0]) + self.weight_range[0]
-            if self.network_connections is not None:
-                connection_array = np.zeros(shape)
-                for i in range(self.output_dimension):
-                    for connection in self.network_connections[self.bias_dimension +
-                                                               self.input_dimension +
-                                                               self.hidden_dimension + i]:
-                        connection_array[connection, i] = 1.0
-                weight_array = weight_array * connection_array
-            self.weight_array.append(weight_array)
+            self.weight_array.append(weight_array * self.connections_array[-1])
+
+    @staticmethod
+    def from_connection_list(input_dimension: int, hidden_dimension: int, output_dimension: int,
+                             connection_list: List[Tuple[int, int, float]], **kwargs):
+        """
+        Creates a new :class:`LayerlessSparseNetModel` from a list of connection tuples.
+        These tuples are in the shape, (start node, end node, weight)
+        Nodes are in the order input nodes, bias nodes, hidden nodes, output nodes.
+
+
+        Parameters
+        ----------
+        input_dimension - int
+            The number of input nodes in the network
+        hidden_dimension - int
+            The number of hidden nodes in the network
+        output_dimension - int
+            The number of output nodes in the network
+        connection_list - List[Tuple[int, int, float]]
+            A list of connection tuples, which can be used to build another layerless network
+        **kwargs
+        kwargs
+            Accepts all arguments that the LayerlessSparseNetModel
+
+        Returns
+        -------
+        LayerlessDenseNetModel
+            A new LayerlessDenseNetModel with the shape described in the connection list
+        """
+
+        connection_list = sorted(connection_list)
+
+        Coordinates = {}
+        Dependencies = {}
+        Connections = {}
+
+        layers = []
+        nodes = []
+
+        for in_node, out_node, _ in connection_list:
+            if in_node in Connections:
+                Connections[in_node].add(out_node)
+            else:
+                Connections[in_node] = {out_node}
+
+            if out_node in Dependencies:
+                Dependencies[out_node].add(in_node)
+            else:
+                Dependencies[out_node] = {in_node}
+
+
+        kwargs["input_dimension"] = input_dimension
+        kwargs["hidden_dimension"] = hidden_dimension
+        kwargs["output_dimension"] = output_dimension
+
+        kwargs["weight_array"] = weight_array
+
+        return LayerlessSparseNetModel(**kwargs)
+        pass
+
+    def get_connection_list(self) -> List[Tuple[int, int, float]]:
+        """
+
+        Returns
+        -------
+
+        """
+        pass
 
     def predict(self, x: Union[np.ndarray, Iterable], batch_size: int = 1, iteration_limit: int = None) -> np.ndarray:
         """Predicting values of some function
