@@ -72,12 +72,24 @@ class LayerlessSparseNetModel(BaseModel):
         Defaults to the derivative of mean squared error.
     input_output_weights - np.ndarray, optional
         The values of the input to output weights, if no value is supplied, randomly generated weights will be created.
+    input_output_connections - np.ndarray, optional
+        The connections of the input to output weights, if no value is supplied, all possible connections will be marked.
+
     input_hidden_weights - np.ndarray, optional
         The values of the input to hidden weights, if no value is supplied, randomly generated weights will be created.
+    input_output_connections - np.ndarray, optional
+        The connections of the input to hidden weights, if no value is supplied, all possible connections will be marked.
+
     hidden_hidden_weights - np.ndarray, optional
         The values of the hidden to hidden weights, if no value is supplied, randomly generated weights will be created.
+    input_output_connections - np.ndarray, optional
+        The connections of the hidden to hidden weights, if no value is supplied,
+        all possible (forward facing) connections will be marked.
+
     hidden_output_weights - np.ndarray, optional
         The values of the hidden to output weights, if no value is supplied, randomly generated weights will be created.
+    input_output_connections - np.ndarray, optional
+        The connections of the hidden to output weights, if no value is supplied, all possible connections will be marked.
     """
 
     output_dimension: int

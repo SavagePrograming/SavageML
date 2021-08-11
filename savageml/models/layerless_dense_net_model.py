@@ -70,8 +70,12 @@ A Layerless neural network, with sparsely packed hidden wights
     loss_function_derivative: Callable, optional
         The derivative of the loss function of network, used in backpropagation.
         Defaults to the derivative of mean squared error.
+    coordinates: Dict[int, Tuple[int, int]]
+        Translates the name of a node to it's coordinates in the network
     weight_array: List[np.array], optional
         The values of the weights, if no value is supplied, randomly generated weights will be created.
+    weight_array: List[np.array], optional
+        A set of arrays representing where there are connections in the model.
 
     """
 
@@ -179,7 +183,7 @@ A Layerless neural network, with sparsely packed hidden wights
     def from_connections_list(input_dimension: int, hidden_dimension: int, output_dimension: int,
                               connection_list: List[Tuple[int, int, float]], **kwargs):
         """
-        Creates a new :class:`LayerlessSparseNetModel` from a list of connection tuples.
+        Creates a new :class:`LayerlessDenseNetModel` from a list of connection tuples.
         These tuples are in the shape, (start node, end node, weight)
         Nodes are in the order input nodes, bias nodes, hidden nodes, output nodes.
 
@@ -208,7 +212,6 @@ A Layerless neural network, with sparsely packed hidden wights
 
         coordinates: Dict[int, Tuple[int, int]] = {}
         Dependencies: Dict[int, int] = {}
-        # connections: Dict[int, int] = {}
 
         weight_array: List[np.ndarray] = []
         connections_array: List[np.ndarray] = []
@@ -219,10 +222,6 @@ A Layerless neural network, with sparsely packed hidden wights
 
         for in_node, out_node, _ in connection_list:
             assert in_node < out_node, "connections must go from smaller to larger"
-            # if in_node in connections:
-            #     connections[in_node].add(out_node)
-            # else:
-            #     connections[in_node] = {out_node}
 
             if out_node in Dependencies:
                 Dependencies[out_node].add(in_node)
@@ -433,8 +432,8 @@ A Layerless neural network, with sparsely packed hidden wights
             current_derivative = current_derivative + node_update
 
         new_weights = []
-        for weight_update, weights in zip(reversed(weights_update), self.weight_array):
-            new_weights.append(weights + weight_update)
+        for weight_update, weights, connections in zip(reversed(weights_update), self.weight_array, self.connections_array):
+            new_weights.append((weights + weight_update) * connections)
         self.weight_array = new_weights
 
         return current_derivative[:, :-1 * self.bias_dimension]
