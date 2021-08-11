@@ -235,21 +235,19 @@ class LayerlessSparseNetModel(BaseModel):
 
         for start_node, end_node, weight in connection_list:
             if start_node < hidden_start:
-                if (end_node < output_start and
-                        (input_hidden_connections[start_node, end_node - hidden_start] == 1.0).all()):
+                if end_node < output_start:
                     input_hidden_weights[start_node, end_node - hidden_start] = weight
-                elif (end_node >= output_start and
-                      (input_output_connections[start_node, end_node - output_start] == 1.0).all()):
+                    input_hidden_connections[start_node, end_node - hidden_start] = 1.0
+                elif end_node >= output_start:
                     input_output_weights[start_node, end_node - output_start] = weight
+                    input_output_connections[start_node, end_node - output_start] = 1.0
             elif start_node < output_start:
-                if (end_node < output_start and
-                        (hidden_hidden_connections[
-                             start_node - hidden_start, end_node - hidden_start] == 1.0).all()):
+                if end_node < output_start:
                     hidden_hidden_weights[start_node - hidden_start, end_node - hidden_start] = weight
-                elif (end_node >= output_start and
-                      (hidden_output_connections[
-                           start_node - hidden_start, end_node - output_start] == 1.0).all()):
+                    hidden_hidden_connections[start_node - hidden_start, end_node - hidden_start] = 1.0
+                elif end_node >= output_start:
                     hidden_output_weights[start_node - hidden_start, end_node - output_start] = weight
+                    hidden_output_connections[start_node - hidden_start, end_node - output_start] = 1.0
 
         kwargs["input_output_weights"] = input_output_weights
         kwargs["input_output_connections"] = input_output_connections
