@@ -7,6 +7,8 @@ import numpy as np
 
 HIDDEN_WIDTH = 10
 EXPECTED_CONNECTION_COUNT = 88
+PRECISION = 0.0000001
+
 
 
 def test_predict_outputs_correct_size_ndarray():
@@ -50,9 +52,6 @@ def test_get_connections_list():
     model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
-
-    print()
-    [print(connection) for connection in model.get_connections_list()]
 
     assert len(model.get_connections_list()) == EXPECTED_CONNECTION_COUNT
 
