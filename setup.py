@@ -1,8 +1,8 @@
 from setuptools import setup
-
+from savageml import __version__
 setup(
     name='SavageML',
-    version='0.1.1',
+    version=__version__,
     packages=['savageml', 'savageml.models', 'savageml.simulations'],
     url='https://github.com/SavagePrograming/SavageML',
     license='MIT License',
