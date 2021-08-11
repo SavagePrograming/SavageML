@@ -7,7 +7,7 @@ from savageml.simulations import BaseSimulation, SimulationState
 
 
 class ReflexiveBinarySimulation(BaseSimulation):
-    def __init__(self, shape=(1,), max_steps=10, **kwargs):
+    def __init__(self, shape=(1,), max_steps=10, loss_function=lambda x: x, **kwargs):
         super().__init__(**kwargs)
         self.shape = shape
         self.max_steps = max_steps
