@@ -357,7 +357,7 @@ class LayerlessSparseNetModel(BaseModel):
 
     def _predict_batch(self, x: np.ndarray):
         size = x.shape[0]
-        input = np.concatenate([x, np.ones((size, 1))], axis=1)
+        input = np.concatenate([np.ones((size, 1)), x], axis=1)
 
         hidden = self.activation_function(input @ self.input_hidden_weights)
         for _ in range(self.hidden_dimension):
@@ -425,7 +425,7 @@ class LayerlessSparseNetModel(BaseModel):
 
         # Forward Propagation
         size = x.shape[0]
-        input = np.concatenate([x, np.ones((size, 1))], axis=1)
+        input = np.concatenate([np.ones((size, 1)), x], axis=1)
 
         hidden = self.activation_function(input @ self.input_hidden_weights)
         for _ in range(self.hidden_dimension):
