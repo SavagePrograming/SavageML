@@ -1,3 +1,5 @@
+import pickle
+
 import pytest
 
 from savageml.models import BaseModel
@@ -61,3 +63,10 @@ def test_clone_is_not_reference():
     model.set_params(**EXPECTED_PARAMS)
     clonedModel = model.clone()
     assert clonedModel is not model
+
+
+def test_model_can_be_pickled():
+    model = BaseModel(**EXPECTED_PARAMS)
+    data = pickle.dumps(model)
+    new_model = pickle.loads(data)
+    assert new_model.test_param is False
