@@ -1,20 +1,12 @@
 import numpy.random
 
+from Tests import DATA_WIDTH, OUT_WIDTH, TEST_DATA, DATA_SIZE, XOR_SIMULATION, TEST_XOR, LEARNING_RATE, PRECISION
 from savageml.models import LayerlessSparseNetModel
 from savageml.simulations import BinaryXorSimulation
 import numpy as np
 
-DATA_SIZE = 100
-DATA_WIDTH = 2
-OUT_WIDTH = 1
 HIDDEN_WIDTH = 10
-SIMULATION = BinaryXorSimulation((DATA_WIDTH,), DATA_SIZE)
-RNG = numpy.random.default_rng(0)
-TEST_DATA = RNG.choice([0.0, 1.0], (DATA_SIZE, DATA_WIDTH))
-TEST_XOR = np.reshape((TEST_DATA[:, 0] != TEST_DATA[:, 1]), (DATA_SIZE, 1))
-LEARNING_RATE = 0.01
 EXPECTED_CONNECTION_COUNT = 88
-PRECISION = 0.0000001
 
 
 def test_predict_outputs_correct_size_ndarray():
@@ -29,7 +21,7 @@ def test_predict_outputs_correct_size_simulation():
     model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
-    prediction = model.predict(SIMULATION)
+    prediction = model.predict(XOR_SIMULATION)
     assert prediction.shape == (DATA_SIZE, OUT_WIDTH)
 
 
@@ -69,7 +61,7 @@ def test_fit_simulation():
     model = LayerlessSparseNetModel(input_dimension=DATA_WIDTH,
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
-    model.fit(SIMULATION, learning_rate=LEARNING_RATE)
+    model.fit(XOR_SIMULATION, learning_rate=LEARNING_RATE)
     assert True
 
 
