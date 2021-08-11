@@ -23,3 +23,14 @@ def batch_iterator(iterable, batch_size=1):
 def batch_np_array(array: np.ndarray, batch_size=1):
     for batch_index in range(0, array.shape[0], batch_size):
         yield array[batch_index:min(batch_index + batch_size, array.shape[0])]
+
+
+def binary_search(list, value, start_index=0, end_index=len(list)):
+    pivot = (start_index + end_index) // 2
+    if list[pivot] == value:
+        return pivot
+    elif list[pivot] > value:
+        end_index = pivot
+    else:
+        start_index = pivot
+    binary_search(list, value, start_index, end_index)
