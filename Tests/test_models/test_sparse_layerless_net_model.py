@@ -59,6 +59,9 @@ def test_get_connections_list():
                                     hidden_dimension=HIDDEN_WIDTH,
                                     output_dimension=OUT_WIDTH)
 
+    print()
+    [print(connection) for connection in model.get_connections_list()]
+
     assert len(model.get_connections_list()) == EXPECTED_CONNECTION_COUNT
 
 

@@ -25,12 +25,14 @@ def batch_np_array(array: np.ndarray, batch_size=1):
         yield array[batch_index:min(batch_index + batch_size, array.shape[0])]
 
 
-def binary_search(list, value, start_index=0, end_index=len(list)):
+def binary_search(LIST, value, start_index=0, end_index=None):
+    if end_index is None:
+        end_index = len(LIST)
     pivot = (start_index + end_index) // 2
-    if list[pivot] == value:
+    if LIST[pivot] == value:
         return pivot
-    elif list[pivot] > value:
+    elif LIST[pivot] > value:
         end_index = pivot
     else:
         start_index = pivot
-    binary_search(list, value, start_index, end_index)
+    binary_search(LIST, value, start_index, end_index)

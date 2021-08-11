@@ -13,7 +13,8 @@ RNG = numpy.random.default_rng(0)
 TEST_DATA = RNG.choice([0.0, 1.0], (DATA_SIZE, DATA_WIDTH))
 TEST_XOR = np.reshape((TEST_DATA[:, 0] != TEST_DATA[:, 1]), (DATA_SIZE, 1))
 LEARNING_RATE = 0.01
-
+EXPECTED_CONNECTION_COUNT = 88
+PRECISION = 0.0000001
 
 def test_predict_outputs_correct_size_ndarray():
     model = LayerlessDenseNetModel(input_dimension=DATA_WIDTH,
@@ -45,6 +46,30 @@ def test_fit_simulation():
                                    output_dimension=OUT_WIDTH)
     model.fit(SIMULATION, learning_rate=LEARNING_RATE)
     assert True
+
+
+def test_from_connection_list():
+    model = LayerlessDenseNetModel(input_dimension=DATA_WIDTH,
+                                   hidden_dimension=HIDDEN_WIDTH,
+                                   output_dimension=OUT_WIDTH)
+    model_clone = LayerlessDenseNetModel.from_connections_list(
+        input_dimension=DATA_WIDTH,
+        hidden_dimension=HIDDEN_WIDTH,
+        output_dimension=OUT_WIDTH,
+        connection_list=model.get_connections_list()
+    )
+
+    assert np.isclose(model.predict(TEST_DATA), model_clone.predict(TEST_DATA), PRECISION).all()
+
+def test_get_connections_list():
+    model = LayerlessDenseNetModel(input_dimension=DATA_WIDTH,
+                                   hidden_dimension=HIDDEN_WIDTH,
+                                   output_dimension=OUT_WIDTH)
+    print()
+    [print(key) for key in model.coordinates.keys()]
+    print()
+    [print(connection) for connection in model.get_connections_list()]
+    assert len(model.get_connections_list()) == EXPECTED_CONNECTION_COUNT
 
 
 def test_fit_simulation_score():
