@@ -75,6 +75,8 @@ A Layerless neural network, with sparsely packed hidden wights
 
     """
 
+    coordinates: Dict[int, Tuple[int, int]]
+
     output_dimension: int
     hidden_dimension: int
     bias_dimension: int = 1
@@ -89,6 +91,7 @@ A Layerless neural network, with sparsely packed hidden wights
     weight_range: Tuple[float, float]
 
     weight_array: List[np.ndarray]
+    connections_array: List[np.ndarray]
 
     def __init__(self,
                  input_dimension: int,
@@ -101,11 +104,13 @@ A Layerless neural network, with sparsely packed hidden wights
                  loss_function_derivative=LossFunctionDerivatives.MSE_DERIVATIVE,
                  weight_array: List[np.array] = None,
                  connections_array: List[np.array] = None,
+                 coordinates: Dict[int, Tuple[int, int]] = None,
                  **kwargs):
         """Constructor Method"""
 
         super().__init__(**kwargs)
 
+        self.coordinates = coordinates
         self.output_dimension = output_dimension
         self.hidden_dimension = hidden_dimension
         self.bias_dimension = 1
@@ -121,6 +126,10 @@ A Layerless neural network, with sparsely packed hidden wights
 
         self.weight_array: List[np.array] = weight_array
         self.connections_array: List[np.array] = connections_array
+
+        if coordinates is None:
+            node = 0
+
 
         if self.connections_array is None:
             self.connections_array = []
@@ -180,25 +189,59 @@ A Layerless neural network, with sparsely packed hidden wights
             A new LayerlessDenseNetModel with the shape described in the connection list
         """
 
-        connection_list = sorted(connection_list)
+        connection_list: Tuple[int, int, float] = sorted(connection_list)
 
-        Coordinates = {}
-        Dependencies = {}
-        Connections = {}
+        coordinates: Dict[int, Tuple[int, int]] = {}
+        Dependencies: Dict[int, int] = {}
+        connections: Dict[int, int] = {}
 
-        layers = []
-        nodes = []
+        weight_array: List[np.ndarray] = []
+        connection_array: List[np.ndarray] = []
+
+        layers: List[List[int]] = [[]]
+        nodes: List[int] = sorted(
+            {in_node for in_node, _, _ in connection_list}.union({out_node for _, out_node, _ in connection_list}))
 
         for in_node, out_node, _ in connection_list:
-            if in_node in Connections:
-                Connections[in_node].add(out_node)
+            assert in_node < out_node, "connections must go from smaller to larger"
+            if in_node in connections:
+                connections[in_node].add(out_node)
             else:
-                Connections[in_node] = {out_node}
+                connections[in_node] = {out_node}
 
             if out_node in Dependencies:
                 Dependencies[out_node].add(in_node)
             else:
                 Dependencies[out_node] = {in_node}
+
+        for node in nodes:
+            layer = 0
+            if node in Dependencies:
+                layer = max([coordinates[parent][0] for parent in Dependencies[node]]) + 1
+            while len(layers) <= layer:
+                layers.append([])
+            index = len(layers[layer])
+            coordinates[node] = (layer, index)
+            coordinates[(layer, index)] = node
+            layers[layer].append(node)
+
+        layer_starts: List[int] = [0]
+        for layer in layers[:-1]:
+            layer_starts.append(layer_starts[-1] + len(layer))
+
+        for layer_start, layer in zip(layer_starts[1:], layers[1:]):
+            shape = (layer_start, len(layer))
+            connection_array.append(np.zeros(shape))
+            weight_array.append(np.zeros(shape))
+
+        for in_node, out_node, weight in connection_list:
+            in_layer, in_index = coordinates[in_node]
+            out_layer, out_index = coordinates[out_node]
+
+            layer_weights = weight_array[out_layer - 1]
+            layer_connections = connection_array[out_layer - 1]
+            layer_weights[layer_starts[in_layer] + in_index: out_index] = weight
+            layer_connections[layer_starts[in_layer] + in_index: out_index] = 1.0
 
 
         kwargs["input_dimension"] = input_dimension
@@ -206,9 +249,11 @@ A Layerless neural network, with sparsely packed hidden wights
         kwargs["output_dimension"] = output_dimension
 
         kwargs["weight_array"] = weight_array
+        kwargs["connection_array"] = connection_array
+        kwargs["coordinates"] = coordinates
 
-        return LayerlessSparseNetModel(**kwargs)
-        pass
+
+        return LayerlessDenseNetModel(**kwargs)
 
     def get_connection_list(self) -> List[Tuple[int, int, float]]:
         """
@@ -350,8 +395,8 @@ A Layerless neural network, with sparsely packed hidden wights
             result = layer[:, -1 * size:]
             layer = layer[:, :-1 * size]
 
-            result_derivative = current_derivative[:, -1*size:]
-            current_derivative = current_derivative[:, :-1*size]
+            result_derivative = current_derivative[:, -1 * size:]
+            current_derivative = current_derivative[:, :-1 * size]
 
             dl_da = result_derivative * self.activation_derivative(result)
 
@@ -366,4 +411,4 @@ A Layerless neural network, with sparsely packed hidden wights
             new_weights.append(weights + weight_update)
         self.weight_array = new_weights
 
-        return current_derivative[:, :-1*self.bias_dimension]
+        return current_derivative[:, :-1 * self.bias_dimension]
