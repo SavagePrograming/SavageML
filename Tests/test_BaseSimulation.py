@@ -1,5 +1,5 @@
-from savageml.Models.BaseModel import BaseModel
-from savageml.Simulations.BaseSimulation import BaseSimulation
+from savageml.Models import BaseModel
+from savageml.Simulations import BaseSimulation
 from savageml.Simulations import SimulationState
 
 

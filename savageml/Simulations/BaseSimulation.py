@@ -1,8 +1,8 @@
 import random
 import time
 
-from savageml.Models.BaseModel import BaseModel
-from savageml.Simulations.SimulationState import SimulationState
+from savageml.Models import BaseModel
+from savageml.Simulations import SimulationState
 
 
 def get_default_seed():
