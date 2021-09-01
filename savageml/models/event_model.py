@@ -1,67 +1,30 @@
 from collections import Iterable
-from ctypes import Union
 from typing import List
 
 import numpy as np
-
-from savageml.models import BaseModel
 import pynput
 
-MOUSE_X = "mouse_x"
-MOUSE_Y = "mouse_y"
+from savageml.models import BaseModel
+from savageml.utility.event_model_dataclasses import *
 
-CLICK_X = "click_x"
-CLICK_Y = "click_y"
-CLICK = "click"
-CLICK_PERSISTANT = "click_persistent"
-
-def create_mouse_listener(event_table, values):
-    def on_move(x, y):
-        if MOUSE_X in event_table:
-            values[event_table[MOUSE_X]] = x
-        if MOUSE_Y in event_table:
-            values[event_table[MOUSE_Y]] = y
-
-        print('Pointer moved to {0}'.format(
-            (x, y)))
-
-    def on_click(x, y, button, pressed):
-
-        if MOUSE_X in event_table:
-            values[event_table[MOUSE_X]] = x
-        if MOUSE_Y in event_table:
-            values[event_table[MOUSE_Y]] = y
-
-        print('{0} at {1}'.format(
-            'Pressed' if pressed else 'Released',
-            (x, y)))
-        if not pressed:
-            # Stop listener
-            return False
-
-    def on_scroll(x, y, dx, dy):
-        print('Scrolled {0}'.format(
-            (x, y)))
-
-    return pynput.mouse.Listener(
-        on_move=on_move,
-        on_click=on_click,
-        on_scroll=on_scroll)
-def create_keyboard_event_handlers(event_table, case_sensitive, values):
-    pass
 
 class EventModel(BaseModel):
-    def __init__(self, event_list: List[str], delay: float = 0.0, case_sensitive=False):
+    def __init__(self, event_list: List[Union[]], delay: float = 0.0, case_sensitive=False):
         """Constructor Method"""
         self.event_list = event_list
         self.delay = delay
-        event_table = {event: index for index, event in enumerate(event_list)}
+
+        mouse_event_table = {event: index for index, event in enumerate(event_list) if isinstance(event, MouseEventData)}
+        keyboard_event_table = {event: index for index, event in enumerate(event_list) if isinstance(event, KeyEventData)}
+
         self.out_put = np.zeros((1, len(event_list)))
         self.case_sensitive = case_sensitive
 
-        self.mouse_listener = create_mouse_listener(event_table, self.out_put)
+        self.mouse_listener = create_mouse_listener(mouse_event_table, self.out_put)
         self.mouse_listener.start()
 
+        self.keyboard_listener = create_mouse_listener(keyboard_event_table, self.out_put)
+        self.keyboard_listener.start()
 
         pass
 
@@ -123,3 +86,41 @@ class EventModel(BaseModel):
         self.mouse_listener.join()
         self.keyboard_listener.stop()
         self.keyboard_listener.join()
+
+
+def create_mouse_listener(event_table, values):
+    def on_move(x, y):
+        if MOUSE_X in event_table:
+            values[event_table[MOUSE_X]] = x
+        if MOUSE_Y in event_table:
+            values[event_table[MOUSE_Y]] = y
+
+        print('Pointer moved to {0}'.format(
+            (x, y)))
+
+    def on_click(x, y, button, pressed):
+
+        if MOUSE_X in event_table:
+            values[event_table[MOUSE_X]] = x
+        if MOUSE_Y in event_table:
+            values[event_table[MOUSE_Y]] = y
+
+        print('{0} at {1}'.format(
+            'Pressed' if pressed else 'Released',
+            (x, y)))
+        if not pressed:
+            # Stop listener
+            return False
+
+    def on_scroll(x, y, dx, dy):
+        print('Scrolled {0}'.format(
+            (x, y)))
+
+    return pynput.mouse.Listener(
+        on_move=on_move,
+        on_click=on_click,
+        on_scroll=on_scroll)
+
+
+def create_keyboard_event_handlers(event_table, case_sensitive, values):
+    pass
