@@ -25,7 +25,7 @@ class BinaryAndSimulation(BaseSimulation):
             output = np.array(((sample == 1.0).all())).astype(float).reshape((1,1))
             if self.model is not None:
                 prediction = self.model.predict(sample)
-                loss = self.loss_function(sample, prediction)
+                loss = self.loss_function(output, prediction)
             else:
                 loss = None
             return sample, output, loss

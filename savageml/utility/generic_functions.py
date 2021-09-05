@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 
 def get_sample_from_iterator(data_iterator):
@@ -36,3 +37,11 @@ def binary_search(LIST, value, start_index=0, end_index=None):
     else:
         start_index = pivot
     binary_search(LIST, value, start_index, end_index)
+
+
+def wait_until(eval_function, timeout, period=0.25, *args, **kwargs):
+    mustend = time.time() + timeout
+    while time.time() < mustend:
+        if eval_function(*args, **kwargs): return True
+        time.sleep(period)
+    return False

@@ -22,10 +22,15 @@ class BinaryXorSimulation(BaseSimulation):
             else:
                 self.state = SimulationState.RUNNING
             sample = self.random.choice([0.0, 1.], (1,) + self.shape)
+            if visualize:
+                print("sample", sample)
             output = np.array(((sample == 1.0).sum() == 1.0)).astype(float).reshape((1, 1))
             if self.model is not None:
                 prediction = self.model.predict(sample)
-                loss = self.loss_function(sample, prediction)
+                loss = self.loss_function(output, prediction)
+                if visualize:
+                    print("prediction:", prediction)
+                    print("loss:", loss)
             else:
                 loss = None
             return sample, output, loss
