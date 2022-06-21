@@ -9,8 +9,7 @@ from savageml.utility import get_sample_from_iterator, batch_iterator, \
 
 
 class LayerlessDenseNetModel(BaseModel):
-    """
-A Layerless neural network, with sparsely packed hidden wights
+    """A Layerless neural network, with sparsely packed hidden wights
 
     The layerless networks are meant to be able to represent various networks with non standard shapes.
     They can any network shape that is not cyclical.
